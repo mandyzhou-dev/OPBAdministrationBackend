@@ -53,6 +53,10 @@ public class UserService implements UserDetailsService {
         user.setPassword(passwordEncoder.encode(password));
         save(user);
     }
+
+    public boolean verifyPassword(User user, String rawPassword) {
+        return passwordEncoder.matches(rawPassword, user.getPassword());
+    }
     public String getSinnoByUsername(String username) throws Exception {
         User user = getUserByUsername(username);
         String sinno = cryptor.decrypt(user.getSinno());
