@@ -45,6 +45,15 @@ public class KPIApplication {
        // System.out.println(dayTotalWorkTime);
         return kpiCalculator.calculate(Double.valueOf(0), dayTotalWorkTime);
     }
+
+    // Overload: specify both user and group
+    public KPI ofDate(String username, String group,Date date){
+        //员工隶属组与KPI强绑定
+        ZonedDateTime zonedDateTime = date.toInstant().atZone(ZoneId.systemDefault());
+        List<ShiftArrangement> dayShiftList = shiftArrangementService.getByUserAndGroupAndDate(username, group, zonedDateTime);
+        Double dayTotalWorkTime = workLoadCalculator.calculateTotalWorkHour(dayShiftList);
+        return kpiCalculator.calculate(Double.valueOf(0), dayTotalWorkTime);
+    }
     public KPI ofBiweek(String group){
 
         Sprint sprint =sprintService.getCurrentSprint();
@@ -67,4 +76,27 @@ public class KPIApplication {
         biweekKPI.setEndDateTime(sprint.getEndTime());
         return biweekKPI;
     }
+
+    // Overload: specify both user and group
+    public KPI ofBiweek(String username, String group){
+        Sprint sprint =sprintService.getCurrentSprint();
+        long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(
+                sprint.getStartTime().toLocalDate(),
+                sprint.getEndTime().toLocalDate()
+        ) + 1;
+        Double totalWorkTime = 0.0;
+        for (int i = 0; i < daysBetween; i++) {
+            ZonedDateTime currentDate = sprint.getStartTime().plusDays(i);
+            List<ShiftArrangement> dayShiftList = shiftArrangementService.getByUserAndGroupAndDate(username, group, currentDate);
+            Double dayWorkTime = workLoadCalculator.calculateTotalWorkHour(dayShiftList);
+            totalWorkTime += dayWorkTime;
+        }
+
+        KPI biweekKPI = kpiCalculator.calculate(Double.valueOf(0), totalWorkTime);
+        biweekKPI.setStartDateTime(sprint.getStartTime());
+        biweekKPI.setEndDateTime(sprint.getEndTime());
+        return biweekKPI;
+    }
 }
+
+//KPI ofBiweekForUser(String username)

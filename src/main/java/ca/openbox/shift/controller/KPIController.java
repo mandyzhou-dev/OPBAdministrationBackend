@@ -17,12 +17,23 @@ import java.util.Date;
 public class KPIController {
     @Autowired
     KPIApplication kpiApplication;
-    @GetMapping
-    public KPI getKPIByDateAndGroup(@RequestParam String group,@RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd")Date date){
-        return kpiApplication.ofDate(group, date);
+    @GetMapping("/groupName")
+    public KPI getKPIByDateAndGroup(@RequestParam String groupName,@RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd")Date date){
+        return kpiApplication.ofDate(groupName, date);
     }
-    @GetMapping("/biweek")
-    public KPI getBiweekKPIByGroup(@RequestParam String group){
-        return kpiApplication.ofBiweek(group);
+    @GetMapping("/user")
+    public KPI getUserKPI(@RequestParam String username,
+                          @RequestParam String groupName,
+                          @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date date) {
+        return kpiApplication.ofDate(username, groupName, date);
+    }
+    @GetMapping("/groupName/biweek")
+    public KPI getBiweekKPIByGroup(@RequestParam String groupName){
+        return kpiApplication.ofBiweek(groupName);
+    }
+    @GetMapping("/user/biweek")
+    public KPI getUserBiweekKPI(@RequestParam String username,
+                                @RequestParam String groupName) {
+        return kpiApplication.ofBiweek(username, groupName);
     }
 }
