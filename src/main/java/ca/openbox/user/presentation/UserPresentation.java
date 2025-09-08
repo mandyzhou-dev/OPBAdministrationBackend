@@ -19,5 +19,6 @@ public class UserPresentation {
     private Integer active;
     private String name;
     private String roles;
+    private String groupName;
 
 }
