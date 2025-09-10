@@ -1,4 +1,4 @@
-package ca.openbox.shift.service;
+package ca.openbox.shift.service.KPI;
 
 import org.springframework.stereotype.Service;
 

@@ -1,6 +1,7 @@
 package ca.openbox.user.service;
 
 import ca.openbox.infrastructure.security.Cryptor;
+import ca.openbox.infrastructure.variables.service.ApplicationVariableService;
 import ca.openbox.user.dataobject.EmailVerificationDO;
 import ca.openbox.user.dataobject.UserDO;
 import ca.openbox.user.entities.User;
@@ -13,6 +14,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+
 @Service
 public class UserService implements UserDetailsService {
     @Autowired
@@ -23,6 +26,8 @@ public class UserService implements UserDetailsService {
     PasswordEncoder passwordEncoder;
     @Autowired
     Cryptor cryptor;
+    @Autowired
+    ApplicationVariableService applicationVariableService;
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         UserDO userDO = userRepository.getUserDOByUsernameAndActiveIsTrue(username);
@@ -79,5 +84,13 @@ public class UserService implements UserDetailsService {
         UserDO userDO = userRepository.getUserDOByEmail(email);
         if(userDO!=null) return false;
         return emailVerificationDO.getVerificationCode().equals(code);
+    }
+    public boolean isInProbation(String username) {
+        User user = getUserByUsername(username);
+        if(user==null) return true;
+        if(user.getBigDay()==null) return true;
+        LocalDate probationEnd
+                = user.getBigDay().plusMonths(Integer.parseInt(applicationVariableService.getVariableValue("PROBATION_MONTHS")));
+        return LocalDate.now().isBefore(probationEnd);
     }
 }

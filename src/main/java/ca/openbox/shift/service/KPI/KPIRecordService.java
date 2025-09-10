@@ -1,4 +1,4 @@
-package ca.openbox.shift.service;
+package ca.openbox.shift.service.KPI;
 
 import ca.openbox.shift.dataobject.KPIRecordDO;
 import ca.openbox.shift.entities.KPIRecord;

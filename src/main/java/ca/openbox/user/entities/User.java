@@ -31,6 +31,7 @@ public class User {
     private Integer active;
     //need to input the group name for each user in the database by hand
     private String groupName;
+    private LocalDate bigDay;
 
     public UserDO getDO(){
         UserDO userDO = new UserDO();
@@ -48,7 +49,7 @@ public class User {
         //userDO.setPersonalDocumentsPath(personalDocumentsPath);
         //wait for list
         userDO.setGroupName(groupName);
-
+        userDO.setBigDay(bigDay);
         return userDO;
     }
     static public User fromDO(UserDO userDO){
@@ -66,6 +67,7 @@ public class User {
         user.active = userDO.getActive();
         //user.personalDocumentsPath = userDO.getPersonalDocumentsPath();
         user.groupName = userDO.getGroupName();
+        user.bigDay = userDO.getBigDay();
         return user;
     }
 

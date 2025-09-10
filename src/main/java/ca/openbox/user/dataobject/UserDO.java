@@ -31,4 +31,5 @@ public class UserDO {
     private Integer active;
     //new
     private String groupName;
+    private LocalDate bigDay;
 }

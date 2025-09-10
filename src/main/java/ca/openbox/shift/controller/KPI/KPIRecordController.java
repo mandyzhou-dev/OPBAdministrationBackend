@@ -1,7 +1,7 @@
-package ca.openbox.shift.controller;
+package ca.openbox.shift.controller.KPI;
 
 import ca.openbox.shift.entities.KPIRecord;
-import ca.openbox.shift.service.KPIRecordService;
+import ca.openbox.shift.service.KPI.KPIRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
