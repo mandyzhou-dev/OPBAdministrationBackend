@@ -128,4 +128,10 @@ public class UserController {
     public CsrfToken csrf(CsrfToken token){
         return token;
     }
+
+    @CrossOrigin(origins = "http://localhost:8081")
+    @GetMapping("/{username}/probation")
+    public boolean isInProbation(@PathVariable String username) {
+        return userService.isInProbation(username);
+    }
 }

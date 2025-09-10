@@ -18,6 +18,12 @@ public class UserPresentor {
     public Collection<UserPresentation> getUserByRoleName(@RequestParam("role") String role){
         return userPresentationRepository.findByRolesLikeAndActiveIsTrue("%"+role+"%");
     }
+
+    @CrossOrigin(origins = "http://localhost:8081")
+    @GetMapping("/getUserByGroupName")
+    public Collection<UserPresentation> getUserByGroupName(@RequestParam("group") String groupName){
+        return userPresentationRepository.findByGroupNameLikeAndActiveIsTrue("%"+groupName+"%");
+    }
 /*    @CrossOrigin(origins = "http://localhost:8081")
     @GetMapping("/getUserByUsername")
     public UserPresentor getUserByUsername(@RequestParam("username") String username){

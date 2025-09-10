@@ -37,10 +37,16 @@ public class ShiftArrangementService {
         return ShiftArrangement.fromDO(modifiedShiftArrangementDO);
     }
 
-    public List<ShiftArrangement> getByGroupAndDate(String group, ZonedDateTime date){
+    public List<ShiftArrangement> getByGroupAndDate(String groupName, ZonedDateTime date){
         ZonedDateTime start = date.withHour(0).withMinute(0).withSecond(0);
         ZonedDateTime end = date.withHour(23).withMinute(59).withSecond(59);
-        List<ShiftArrangementDO> shiftArrangementDOList = shiftArrangementRepository.getShiftArrangementDOByGroupAndStartBetween(group, start, end);
+        List<ShiftArrangementDO> shiftArrangementDOList = shiftArrangementRepository.getShiftArrangementDOByGroupAndStartBetween(groupName, start, end);
+        return shiftArrangementDOList.stream().map(o -> ShiftArrangement.fromDO(o)).collect(Collectors.toList());
+    }
+    public List<ShiftArrangement> getByUserAndGroupAndDate(String username, String groupName, ZonedDateTime date){
+        ZonedDateTime start = date.withHour(0).withMinute(0).withSecond(0);
+        ZonedDateTime end = date.withHour(23).withMinute(59).withSecond(59);
+        List<ShiftArrangementDO> shiftArrangementDOList = shiftArrangementRepository.getShiftArrangementDOByUsernameAndGroupAndStartBetween(username, groupName, start, end);
         return shiftArrangementDOList.stream().map(o -> ShiftArrangement.fromDO(o)).collect(Collectors.toList());
     }
 

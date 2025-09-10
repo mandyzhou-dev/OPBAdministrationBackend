@@ -51,6 +51,7 @@ public class SecurityConfiguration {
                                 .requestMatchers(HttpMethod.PUT,"/shift/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/**").permitAll()
                                 .requestMatchers(HttpMethod.POST,"/user/**").permitAll()
+                                .requestMatchers(HttpMethod.GET,"/user/**").permitAll()
                                 .requestMatchers(HttpMethod.PUT,"/process/**").permitAll()
                                 .requestMatchers(HttpMethod.POST,"/process/**").permitAll()
                                 .requestMatchers(HttpMethod.DELETE,"/process/**").permitAll()
