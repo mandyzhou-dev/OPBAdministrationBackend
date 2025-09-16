@@ -24,6 +24,13 @@ public class UserPresentor {
     public Collection<UserPresentation> getUserByGroupName(@RequestParam("group") String groupName){
         return userPresentationRepository.findByGroupNameLikeAndActiveIsTrue("%"+groupName+"%");
     }
+
+    @CrossOrigin(origins = "http://localhost:8081")
+    @GetMapping("/employees/basic")
+    public Collection<UserPresentation> getEmployeeBasicInfo(){
+        //!hard-encoding
+        return userPresentationRepository.findByRolesContainingOrderByActiveDesc("tester");
+    }
 /*    @CrossOrigin(origins = "http://localhost:8081")
     @GetMapping("/getUserByUsername")
     public UserPresentor getUserByUsername(@RequestParam("username") String username){
