@@ -1,17 +1,17 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/opb
-    username: root
-    password: ENC(VTSiOy0JH9DdvED9Otqx6JMWuOf9ZERTD4mszzqZnfUXqMezRC02JFrSqFDF2AQQ)
+    url: {{ mysqlURL }}
+    username: { { mysqlUsername } }
+    password: {{ mysqlPassword }}
   jackson:
     deserialization:
       adjust-dates-to-context-time-zone: false
   jpa:
     show-sql: true
 secret:
-  key: ENC(S/i16lOGf4iJmnIITKONL/920hvO4MtnKXJlOmWQKHA3W2qmuwayuQ31iuCaiAy6SylWax8MzKZRWJKkWUtymQ==)
-  iv: ENC(gZ1qhmopxdAqmC4wpNNnfeAFP/rP+rF7k3wG2APmdm+HNaUp13XtY2o06lOi47fJ8ZsQkA4Anr4GUw2wEQY+Pw==)
-  jwt: ENC(0aFqmqsTMmBTxJyGagODqLkkxL4ENwcaVMJvOFOQRz0vAHII8FML81o0dwjQL9WqtmuURGZ8XwANcIo+mXxsGl9jSr4OPX6t6OW8QvCrf7OEvqtksW3Md0uMv31VW+Z0)
+  key: {{ encryptKey }}
+  iv: {{ encryptIV }}
+  jwt: {{ jwt }}
 server:
   servlet:
     context-path: /api

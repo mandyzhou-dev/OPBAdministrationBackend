@@ -5,11 +5,18 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @SpringBootApplication
 @EnableEncryptableProperties
 @EnableScheduling
 public class Main {
     public static void main(String[] args) {
-        SpringApplication.run(Main.class, args);
+        SpringApplication springApplication = new SpringApplication(Main.class);
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("spring.config.location", "file:/etc/openbox/config.yml");
+        springApplication.setDefaultProperties(properties);
+        springApplication.run(args);
     }
 }
