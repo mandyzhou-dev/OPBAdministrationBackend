@@ -64,6 +64,8 @@ public class SecurityConfiguration {
                                 .requestMatchers(HttpMethod.POST,"/user/send_code**").permitAll()
                                 .requestMatchers(HttpMethod.POST,"register**").permitAll()
                                 .requestMatchers(HttpMethod.PUT,"/regulation/**").permitAll()
+                                .requestMatchers(HttpMethod.POST,"/employment/**").permitAll()
+                                .requestMatchers(HttpMethod.GET,"/employment/**").permitAll()
 
                 ).csrf(csrf -> csrf.disable()).cors(cors -> cors.configurationSource(corsConfigurationSource()));
         return http.build();

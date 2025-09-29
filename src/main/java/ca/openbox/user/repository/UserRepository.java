@@ -9,5 +9,6 @@ import org.springframework.data.repository.query.Param;
 public interface UserRepository extends Repository<UserDO,String> {
     UserDO getUserDOByUsernameAndActiveIsTrue(String username);
     UserDO save(UserDO userDO);
+    UserDO findByUsername(String username);
     UserDO getUserDOByEmail(String email);
 }

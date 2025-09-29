@@ -16,6 +16,7 @@ public class UserPresentation {
     //Query from db,not crossing entity
     @Id
     private String username;
+    private String email;
     private Integer active;
     private String name;
     private String roles;

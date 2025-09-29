@@ -93,4 +93,12 @@ public class UserService implements UserDetailsService {
                 = user.getBigDay().plusMonths(Integer.parseInt(applicationVariableService.getVariableValue("PROBATION_MONTHS")));
         return LocalDate.now().isBefore(probationEnd);
     }
+    public void deactivate(String username) {
+        User user = getUserByUsername(username);
+        if(user.getActive() != null && user.getActive() == 0){//Already deactivated
+            return;
+        }
+        user.setActive(0);
+        save(user);
+    }
 }
