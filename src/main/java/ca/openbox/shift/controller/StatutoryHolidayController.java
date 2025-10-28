@@ -20,11 +20,6 @@ public class StatutoryHolidayController {
     private StatutoryHolidayService statutoryHolidayService;
 
     @GetMapping
-    public List<LocalDate> getHolidays() {//TODO: Refactor by getAllHolidays
-        return statutoryHolidayService.getAllHolidayDates();
-    }
-
-    @GetMapping("/findAll")
     public List<StatutoryHolidayDTO> getAllHolidays() {
         List<StatutoryHolidayDTO> statutoryHolidayDTOList = new ArrayList<>();
         List<StatutoryHolidayDO> statutoryHolidayDOList = statutoryHolidayService.findAllHolidays();
