@@ -6,9 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 
 @RestController
-@RequestMapping("/resignation")
+@RequestMapping("/resignations")
 public class ResignationApplicationController {
     @Autowired
     ResignationApplicationService resignationApplicationService;
@@ -23,4 +24,11 @@ public class ResignationApplicationController {
         resignationApplication.setSubmittedAt(ZonedDateTime.now());
         return resignationApplicationService.addResignationApplication(resignationApplication);
     }
+
+    @CrossOrigin(origins = "http://localhost:8081")
+    @GetMapping
+    public List<ResignationApplication> getAllResignationApplications() throws Exception {
+        return resignationApplicationService.getAllResignationApplications();
+    }
+
 }

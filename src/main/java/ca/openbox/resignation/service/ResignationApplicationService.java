@@ -6,6 +6,8 @@ import ca.openbox.resignation.repository.ResignationApplicationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class ResignationApplicationService {
     @Autowired
@@ -18,5 +20,8 @@ public class ResignationApplicationService {
         ResignationApplication resignationApplication = resignationApplicationRepository.getResignationApplicationById(id);
         resignationApplication.setStatus(ResignationApplicationStatus.REVIEWED);
         resignationApplicationRepository.save(resignationApplication);
+    }
+    public List<ResignationApplication> getAllResignationApplications() {
+        return resignationApplicationRepository.findAll();
     }
 }
