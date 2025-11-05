@@ -10,6 +10,8 @@ public interface ResignationApplicationRepository extends Repository<Resignation
     ResignationApplication save(ResignationApplication resignationApplication);
     ResignationApplication getResignationApplicationById(Integer id);
     List<ResignationApplication> findAll();
+
+    ResignationApplication getResignationApplicationByApplicant(String applicant);
     ResignationApplication getResignationApplicationByStatusIsContainingOrderBySubmittedAtDesc(String status);
     void deleteById(Integer id);
     boolean existsByApplicantAndStatusIn(String username, List<ResignationApplicationStatus> status);

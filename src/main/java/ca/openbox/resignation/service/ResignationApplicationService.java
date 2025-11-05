@@ -37,4 +37,8 @@ public class ResignationApplicationService {
     public List<ResignationApplication> getAllResignationApplications() {
         return resignationApplicationRepository.findAll();
     }
+
+    public ResignationApplication getResignationApplicationByApplicant(String applicant) {
+        return resignationApplicationRepository.getResignationApplicationByApplicant(applicant);
+    }
 }

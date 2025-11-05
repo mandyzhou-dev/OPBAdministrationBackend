@@ -37,4 +37,10 @@ public class ResignationApplicationController {
         resignationApplicationService.reviewApplication(id);
     }
 
+    @CrossOrigin(origins = "http://localhost:8081")
+    @GetMapping("/{applicant}")
+    public ResignationApplication getResignationApplicationByApplicant(@PathVariable String applicant) {
+        return resignationApplicationService.getResignationApplicationByApplicant(applicant);
+    }
+
 }
