@@ -46,6 +46,7 @@ public class EmploymentService {
         //2.2. get the bigday, occ,salary,legalName from User
         employment.setBigDay(user.getBigDay());
         employment.setRoles(user.getRoles());
+        employment.setLegalName(user.getLegalname());
         //2.3. Save the employment record
         employmentRepository.save(employment);
         //3. Deactivate the account
