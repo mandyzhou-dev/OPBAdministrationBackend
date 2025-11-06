@@ -19,6 +19,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
 @RequestMapping("user")
 @RestController
 public class UserController {
@@ -37,6 +40,18 @@ public class UserController {
         if(user==null)return false;
         return true;
     }
+
+    //TODO: Please check whether to use: Map or Dedicated DTO
+    @CrossOrigin(origins = "http://localhost:8081", allowCredentials="true", allowedHeaders = {"*"})
+    @PostMapping("/verify_password")
+    public boolean verifyPassword(@RequestBody Map<String, String> body){
+        String username = body.get("username");
+        String password = body.get("password");
+        User user = userService.getUserByUsername(username);
+        if (user == null) return false;
+        return userService.verifyPassword(user, password);
+    }
+
     @CrossOrigin(origins = "http://localhost:8081", allowCredentials="true", allowedHeaders = {"*"})
     @PostMapping("/login")
     public Object login(@RequestBody LoginDTO loginDTO, HttpServletRequest request){
