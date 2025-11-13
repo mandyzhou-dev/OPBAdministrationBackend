@@ -35,6 +35,7 @@ public class ResignationEmailConsumer {
                     for(UserPresentation userPresentation : userPresentations) {
                         String email = userPresentation.getEmail();
                         emailService.sendEmail(email, subject, body);
+                        Thread.sleep(20000);//sleep 20s
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
