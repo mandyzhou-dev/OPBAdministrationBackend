@@ -34,7 +34,7 @@ public class EmailNotificationConsumer {
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a", Locale.US);
                     //3.2 the body
                     String body = String.format(
-                            "%s submitted a leave request from %s to %s. Please log on to https://openbox.brimon.me/ to review it.",
+                            "%s submitted a leave request from %s to %s. Please log on to https://openbox.brimon.ca/ to review it.",
                             applicant,
                             leaveApplication.getStart().format(formatter),
                             leaveApplication.getEnd().format(formatter)

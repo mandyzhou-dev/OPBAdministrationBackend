@@ -11,7 +11,7 @@ public class CORSConfiguration {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:8081", "https://api-openbox.brimon.me/")
+                        .allowedOrigins("http://localhost:8081", "https://api-openbox.brimon.ca/")
                         .allowedMethods("GET", "POST", "PUT", "DELETE");
             }
         };

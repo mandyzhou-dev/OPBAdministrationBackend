@@ -11,4 +11,5 @@ public interface UserRepository extends Repository<UserDO,String> {
     UserDO save(UserDO userDO);
     UserDO findByUsername(String username);
     UserDO getUserDOByEmail(String email);
+
 }

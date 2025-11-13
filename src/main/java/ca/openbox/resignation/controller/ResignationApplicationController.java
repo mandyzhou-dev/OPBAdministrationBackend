@@ -2,6 +2,7 @@ package ca.openbox.resignation.controller;
 import ca.openbox.resignation.dto.PostResignationApplicationDTO;
 import ca.openbox.resignation.entities.ResignationApplication;
 import ca.openbox.resignation.service.ResignationApplicationService;
+import ca.openbox.resignation.service.components.ResignationMessageQueue;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +23,9 @@ public class ResignationApplicationController {
         resignationApplication.setReason(postResignationApplicationDTO.getReason());
         resignationApplication.setLastWorkingDay(postResignationApplicationDTO.getLastWorkingDate());
         resignationApplication.setSubmittedAt(ZonedDateTime.now());
-        return resignationApplicationService.addResignationApplication(resignationApplication);
+        ResignationApplication savedApplication = resignationApplicationService.addResignationApplication(resignationApplication);
+        ResignationMessageQueue.put(savedApplication);
+        return savedApplication;
     }
 
     @CrossOrigin(origins = "http://localhost:8081")
