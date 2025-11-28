@@ -5,6 +5,9 @@ import ca.openbox.infrastructure.variables.service.ApplicationVariableService;
 import ca.openbox.user.dataobject.EmailVerificationDO;
 import ca.openbox.user.dataobject.UserDO;
 import ca.openbox.user.entities.User;
+import ca.openbox.user.exception.UserAlreadyExistsException;
+import ca.openbox.user.exception.UsernameAlreadyTakenException;
+import ca.openbox.user.exception.VerificationCodeException;
 import ca.openbox.user.repository.EmailVerificationRepository;
 import ca.openbox.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +40,10 @@ public class UserService implements UserDetailsService {
     }
     public User register(User user) throws Exception{
         UserDO userDO = user.getDO();
+        if (userRepository.existsByUsername(user.getUsername())) {
+            throw new UsernameAlreadyTakenException();
+        }
+
         userDO.setPassword(passwordEncoder.encode(userDO.getPassword()));
         userDO.setSinno(cryptor.encrypt(userDO.getSinno()));
         userRepository.save(userDO);
@@ -83,11 +90,16 @@ public class UserService implements UserDetailsService {
         emailVerificationDO.setVerificationCode(code);
         emailVerificationRepository.save(emailVerificationDO);
     }
-    public boolean verifyCode(String email,String code){
-        EmailVerificationDO emailVerificationDO = emailVerificationRepository.getEmailVerificationDOByEmail(email);
+    public void verifyCode(String email,String code){
         UserDO userDO = userRepository.getUserDOByEmail(email);
-        if(userDO!=null) return false;
-        return emailVerificationDO.getVerificationCode().equals(code);
+        if(userDO!=null) throw new UserAlreadyExistsException("User with this email already exists.");
+        EmailVerificationDO emailVerificationDO = emailVerificationRepository.getEmailVerificationDOByEmail(email);
+        if (emailVerificationDO == null) {
+            throw new VerificationCodeException("Verification code not found.");
+        }
+        if (!emailVerificationDO.getVerificationCode().equals(code)) {
+            throw new VerificationCodeException("Verification code is incorrect.");
+        }
     }
     public boolean isInProbation(String username) {
         User user = getUserByUsername(username);

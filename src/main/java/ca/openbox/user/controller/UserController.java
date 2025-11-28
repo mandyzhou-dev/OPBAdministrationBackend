@@ -87,29 +87,21 @@ public class UserController {
     }
     @CrossOrigin(origins = "http://localhost:8081",methods = {RequestMethod.POST})
     @PostMapping("/register")
-    public Object register(@RequestBody RegisterDTO registerDTO,@RequestParam String code) throws Exception{
-        //Click the "register now"
-        System.out.println(registerDTO);
-        System.out.println("code"+code);
-        boolean isVerified = userService.verifyCode(registerDTO.getEmail(), code);
-        if(isVerified){
-            User user = new User();
-            user.setUsername(registerDTO.getUsername());
-            user.setName(registerDTO.getName());
-            user.setPassword(registerDTO.getPassword());
-            user.setBirthdate(registerDTO.getBirthdate());
-            user.setRoles("tester");
-            user.setLegalname(registerDTO.getLegalname());
-            user.setSinno(registerDTO.getSinno());
-            user.setAddress(registerDTO.getAddress());
-            user.setPhoneNumber(registerDTO.getPhoneNumber());
-            user.setEmail(registerDTO.getEmail());
-            user.setActive(1);
-            return userService.register(user);
-        }
-        else{
-            throw new IllegalAccessException();
-        }
+    public Object register(@RequestBody RegisterDTO registerDTO, @RequestParam String code) throws Exception {
+        userService.verifyCode(registerDTO.getEmail(), code);
+        User user = new User();
+        user.setUsername(registerDTO.getUsername());
+        user.setName(registerDTO.getName());
+        user.setPassword(registerDTO.getPassword());
+        user.setBirthdate(registerDTO.getBirthdate());
+        user.setRoles("tester");
+        user.setLegalname(registerDTO.getLegalname());
+        user.setSinno(registerDTO.getSinno());
+        user.setAddress(registerDTO.getAddress());
+        user.setPhoneNumber(registerDTO.getPhoneNumber());
+        user.setEmail(registerDTO.getEmail());
+        user.setActive(1);
+        return userService.register(user);
     }
     @CrossOrigin(origins = "http://localhost:8081",methods = {RequestMethod.POST})
     @PostMapping("{username}/updatesinno")

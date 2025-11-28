@@ -49,7 +49,7 @@ public class EmailNotificationConsumer {
                         Thread.sleep(20000);//sleep 20s
                     }
                 } catch (Exception e) {
-                    e.printStackTrace(); // 这里可以加上日志记录
+                    e.printStackTrace();
                 }
             }
         }).start();

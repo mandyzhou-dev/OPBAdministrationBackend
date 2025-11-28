@@ -1,0 +1,7 @@
+package ca.openbox.user.exception;
+
+public class VerificationCodeException extends RuntimeException {
+    public VerificationCodeException(String message) {
+        super(message);
+    }
+}
