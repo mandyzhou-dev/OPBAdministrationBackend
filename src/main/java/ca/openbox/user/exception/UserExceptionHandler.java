@@ -32,6 +32,6 @@ public class UserExceptionHandler {
                 "message", ex.getMessage()
         );
     }
-    //TODO:InvalidBirthdateException;InvalidSinException;InvalidPhoneNumberException;InvalidPostalCodeException;InvalidProvinceException;PasswordTooWeakException;DuplicateSINException
+    //TODO:InvalidEmail;InvalidBirthdateException;InvalidSinException;InvalidPhoneNumberException;InvalidPostalCodeException;InvalidProvinceException;PasswordTooWeakException;DuplicateSINException
 }
 
