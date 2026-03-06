@@ -4,5 +4,4 @@ public enum ResignationApplicationStatus {
 
         PENDING_REVIEW,
         REVIEWED
-
 }

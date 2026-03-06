@@ -49,6 +49,7 @@ public class SecurityConfiguration {
         http.authorizeHttpRequests(authorize ->
                         authorize
                                 .requestMatchers(HttpMethod.PUT,"/shift/**").permitAll()
+                                .requestMatchers(HttpMethod.POST,"/shift/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/**").permitAll()
                                 .requestMatchers(HttpMethod.POST,"/user/**").permitAll()
                                 .requestMatchers(HttpMethod.GET,"/user/**").permitAll()
