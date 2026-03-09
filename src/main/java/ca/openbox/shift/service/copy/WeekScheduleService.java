@@ -47,7 +47,8 @@ public class WeekScheduleService {
             );
         //3. Calculate Time Offset
         //- offsetDays = targetWeekStart - sourceWeekStart
-        long offsetDays = ChronoUnit.DAYS.between(srcStart, dstStart);
+        long offsetDays = ChronoUnit.DAYS.between(presetRequestDTO.getSrcWeekStart(),
+                presetRequestDTO.getTgtWeekStart());
         // 4. Generate Candidate Shifts: For each shift in the source week:
         //    - create a new shift candidate:  newShiftDate = originalShiftDate + offsetDays
         List<ShiftArrangementDO> generatedShiftDOs = new ArrayList<>();
