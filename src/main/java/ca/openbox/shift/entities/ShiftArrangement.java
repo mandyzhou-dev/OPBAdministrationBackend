@@ -15,7 +15,7 @@ public class ShiftArrangement {
     private ZonedDateTime start;
     private ZonedDateTime end;
     private String status;
-    private String group;
+    private String groupName;
 
     public Integer workMinutes(){
         Duration duration = Duration.between(getStart(), getEnd());
@@ -31,7 +31,7 @@ public class ShiftArrangement {
         shiftArrangementDO.setStart(start);
         shiftArrangementDO.setEnd(end);
         shiftArrangementDO.setStatus(status);
-        shiftArrangementDO.setGroup(group);
+        shiftArrangementDO.setGroup(groupName);
         return shiftArrangementDO;
     }
 
@@ -42,7 +42,7 @@ public class ShiftArrangement {
         shiftArrangement.start = shiftArrangementDO.getStart();
         shiftArrangement.end = shiftArrangementDO.getEnd();
         shiftArrangement.status = shiftArrangementDO.getStatus();
-        shiftArrangement.group = shiftArrangementDO.getGroup();
+        shiftArrangement.groupName = shiftArrangementDO.getGroup();
         return shiftArrangement;
     }
 
@@ -53,7 +53,7 @@ public class ShiftArrangement {
         shiftArrangement.end = shiftArrangementDTO.getEnd();
         shiftArrangement.username = shiftArrangementDTO.getUsername();
         shiftArrangement.status = shiftArrangementDTO.getStatus();
-        shiftArrangement.group = shiftArrangementDTO.getGroup();
+        shiftArrangement.groupName = shiftArrangementDTO.getGroupName();
         return shiftArrangement;
     }
 }

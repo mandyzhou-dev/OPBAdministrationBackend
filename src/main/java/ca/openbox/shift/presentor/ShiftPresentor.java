@@ -30,34 +30,35 @@ public class ShiftPresentor {
     @GetMapping("/getShiftByStartDateScope")
     public Collection<ShiftPresentation> getShiftByStartDateScope(@RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime start,
                                                                   @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime end){
-        System.out.println("zone: " + start.getZone());
-        System.out.println("start: " + start);
-        System.out.println("end:" + end);
         return shiftPresentationRepository.getByTimeScope(start, end);
     }
 
     @CrossOrigin(origins = "http://localhost:8081")
-    @GetMapping("/{username}/getShiftByStartDateScope")
+    @GetMapping("/{username}/getMyShiftByStartDateScope")
     public Collection<ShiftPresentation> getMyShiftByStartDateScope(@PathVariable String username,
                                                                     @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime start,
                                                                     @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime end){
         return shiftPresentationRepository.getSchedulePresentationByUsernameAndStartdate(username,start,end);
     }
 
+    /**
+     * Retrieves visible shifts based on user roles and data isolation rules:
+     * - Managers: Can view all shifts across the organization within the time scope.
+     * - Employees: Can view shifts belonging to their Home Group OR shifts assigned to themselves (Support/Cross-store).
+     */
     @CrossOrigin(origins = "http://localhost:8081")
-    @GetMapping("/{username}/getShiftByStartDateScopeAndGroup")
-    //only use userName because the frontend don't know the group of the user
-    public Collection<ShiftPresentation> getShiftByStartDateScopeAndGroup(@PathVariable String username,
-                                                                    @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime start,
-                                                                    @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime end
-                                                                    ){
+    @GetMapping("/{username}/findVisibleShifts")
+    public Collection<ShiftPresentation> findVisibleShifts(@PathVariable String username,
+                                                                 @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime start,
+                                                                 @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime end
+    ){
         UserDO userDO = userRepository.getUserDOByUsernameAndActiveIsTrue(username);
-        String groupName = userDO.getGroupName();
+        String groupName = userDO.getGroupName();//user's homeGroup
         if(groupName.equals("manager")){
             return shiftPresentationRepository.getByTimeScope(start, end);
         }
         else{
-            return shiftPresentationRepository.getByGroupAndTimeScope(groupName,start,end);
+            return shiftPresentationRepository.getByGroupOrUsernameBetween(groupName,username, start,end);
         }
     }
 }

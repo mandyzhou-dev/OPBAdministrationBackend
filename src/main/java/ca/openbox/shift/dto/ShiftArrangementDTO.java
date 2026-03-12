@@ -14,6 +14,6 @@ public class ShiftArrangementDTO {
     private ZonedDateTime end;
 
     private String status;
-    private String group;
+    private String groupName;
 
 }

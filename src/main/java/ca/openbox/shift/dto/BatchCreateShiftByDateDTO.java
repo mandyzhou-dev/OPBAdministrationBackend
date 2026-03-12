@@ -7,6 +7,6 @@ import java.util.List;
 @Data
 public class BatchCreateShiftByDateDTO {
     ZonedDateTime workDate;
-    String group;
+    String groupName;
     List<String> usernames;
 }

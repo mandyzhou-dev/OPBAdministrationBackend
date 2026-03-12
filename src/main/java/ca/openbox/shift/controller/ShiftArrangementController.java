@@ -44,8 +44,7 @@ public class ShiftArrangementController {
             shiftArrangement.setStart(batchCreateShiftByDateDTO.getWorkDate().withFixedOffsetZone().withHour(9).withMinute(30).withSecond(0));
             shiftArrangement.setEnd(batchCreateShiftByDateDTO.getWorkDate().withFixedOffsetZone().withHour(18).withMinute(0).withSecond(0));
             shiftArrangement.setStatus("active");
-            //TODO: for now just use the current group name from the user table, ignore the 'group' parameter from the frontend. Maybe change in the future
-            shiftArrangement.setGroup(userRepository.getUserDOByUsernameAndActiveIsTrue(shiftArrangement.getUsername()).getGroupName());
+            shiftArrangement.setGroupName(batchCreateShiftByDateDTO.getGroupName());
             shiftArrangementService.addArrangement(shiftArrangement);
         }
     }
@@ -59,12 +58,7 @@ public class ShiftArrangementController {
     @CrossOrigin(origins = "http://localhost:8081")
     @PutMapping("/modifyCurrentShift")
     public ShiftArrangement modifyArrangement(@RequestBody ShiftArrangementDTO shiftArrangementDTO){
-        if (shiftArrangementDTO.getGroup() == null) {
-            ShiftArrangement existing = ShiftArrangement.fromDO(shiftArrangementRepository.findById(shiftArrangementDTO.getId()));
-            shiftArrangementDTO.setGroup(existing.getGroup());
-        }
         ShiftArrangement shiftArrangement = ShiftArrangement.fromDTO(shiftArrangementDTO);
         return shiftArrangementService.modifyArrangement(shiftArrangement);
     }
-
 }
