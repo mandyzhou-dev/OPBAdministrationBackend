@@ -7,6 +7,7 @@ import ca.openbox.shift.repository.ShiftArrangementRepository;
 import ca.openbox.shift.service.ShiftArrangementService;
 import ca.openbox.user.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -29,9 +30,7 @@ public class ShiftArrangementController {
 
     @PutMapping
     public ShiftArrangement putArrangement(@RequestBody ShiftArrangementDTO shiftArrangementDTO){
-        System.out.println(shiftArrangementDTO.toString());
         ShiftArrangement shiftArrangement = ShiftArrangement.fromDTO(shiftArrangementDTO);
-        System.out.println(shiftArrangement.toString());
         return shiftArrangementService.addArrangement(shiftArrangement);
     }
     @CrossOrigin(origins = "http://localhost:8081", allowCredentials = "true")
