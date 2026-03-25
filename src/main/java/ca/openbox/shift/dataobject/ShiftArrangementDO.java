@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.envers.Audited;
 
 
 import java.time.ZonedDateTime;
@@ -13,6 +14,7 @@ import java.time.ZonedDateTime;
 @DynamicUpdate
 @DynamicInsert
 @Table(name = "opb_shift_arrangement")
+@Audited
 public class ShiftArrangementDO {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
