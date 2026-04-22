@@ -9,9 +9,8 @@ import java.util.List;
 
 public interface AnnouncementRepository extends Repository<AnnouncementDO,Integer> {
     AnnouncementDO save(AnnouncementDO announcementDO);
-    List<AnnouncementDO> getAnnouncementDOByExpiryDateAfterOrderByCreatedTimeDesc(ZonedDateTime expiryDate);
+    List<AnnouncementDO> findByExpiryDateAfterOrExpiryDateIsNullOrderByCreatedTimeDesc(ZonedDateTime expiryDate);
     AnnouncementDO getAnnouncementDOById(Integer id);
     void deleteAnnouncementDOById(Integer id);
-
 }
 

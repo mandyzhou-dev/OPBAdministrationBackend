@@ -27,7 +27,7 @@ public class AnnouncementService {
     public List<Announcement> getAnnouncementAfter(ZonedDateTime expiryDate, String username) {
         List<AnnouncementDO> announcementListDO = new ArrayList<>();
         List<Announcement> announcements = new ArrayList<>();
-        announcementListDO = announcementRepository.getAnnouncementDOByExpiryDateAfterOrderByCreatedTimeDesc(expiryDate);
+        announcementListDO = announcementRepository.findByExpiryDateAfterOrExpiryDateIsNullOrderByCreatedTimeDesc(expiryDate);
         //new
         String groupName=userRepository.getUserDOByUsernameAndActiveIsTrue(username).getGroupName();
         if (Objects.equals(groupName, "manager")){
