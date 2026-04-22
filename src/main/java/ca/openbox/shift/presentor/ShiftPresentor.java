@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -53,8 +54,9 @@ public class ShiftPresentor {
                                                                  @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime end
     ){
         UserDO userDO = userRepository.getUserDOByUsernameAndActiveIsTrue(username);
+        if (userDO == null) return Collections.emptyList();
         String groupName = userDO.getGroupName();//user's homeGroup
-        if(groupName.equals("manager")){
+        if("manager".equals(groupName)){//avoid the exp: grouname==null
             return shiftPresentationRepository.getByTimeScope(start, end);
         }
         else{
