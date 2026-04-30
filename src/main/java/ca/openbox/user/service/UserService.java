@@ -33,10 +33,14 @@ public class UserService implements UserDetailsService {
     ApplicationVariableService applicationVariableService;
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        UserDO userDO = userRepository.getUserDOByUsernameAndActiveIsTrue(username);
-        System.out.println(userDO.getRoles());
-        UserDetails userDetails = org.springframework.security.core.userdetails.User.withUsername(userDO.getUsername()).password(userDO.getPassword()).roles(userDO.getRoles().split("|")).build();
-        return userDetails;
+        UserDO userDO = getActiveUserDOByUsernameOrEmail(username);
+        if (userDO == null) {
+            throw new UsernameNotFoundException("Active user not found: " + username);
+        }
+        return org.springframework.security.core.userdetails.User.withUsername(userDO.getUsername())
+                .password(userDO.getPassword())
+                .roles(parseRoles(userDO.getRoles()))
+                .build();
     }
     public User register(User user) throws Exception{
         UserDO userDO = user.getDO();
@@ -79,6 +83,17 @@ public class UserService implements UserDetailsService {
         User user = User.fromDO(userDO);
         return user;
     }
+    public UserDO getActiveUserDOByUsernameOrEmail(String identifier) {
+        UserDO userDO = userRepository.getUserDOByUsernameAndActiveIsTrue(identifier);
+        if (userDO != null) return userDO;
+        return userRepository.getUserDOByEmailAndActiveIsTrue(identifier);
+    }
+    public User getUserByUsernameOrEmail(String identifier) {
+        UserDO userDO = getActiveUserDOByUsernameOrEmail(identifier);
+        if (userDO==null) return null;
+        User user = User.fromDO(userDO);
+        return user;
+    }
 
     public String generateCode() {
         // 生成简单的6位数字验证码
@@ -116,5 +131,12 @@ public class UserService implements UserDetailsService {
         }
         user.setActive(0);
         save(user);
+    }
+
+    private String[] parseRoles(String roles) {
+        if (roles == null || roles.isBlank()) {
+            return new String[0];
+        }
+        return roles.split("\\|");
     }
 }

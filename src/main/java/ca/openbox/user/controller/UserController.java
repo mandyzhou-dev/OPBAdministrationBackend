@@ -47,7 +47,7 @@ public class UserController {
     public boolean verifyPassword(@RequestBody Map<String, String> body){
         String username = body.get("username");
         String password = body.get("password");
-        User user = userService.getUserByUsername(username);
+        User user = userService.getUserByUsernameOrEmail(username);
         if (user == null) return false;
         return userService.verifyPassword(user, password);
     }
@@ -59,7 +59,7 @@ public class UserController {
         Authentication authenticationRequest = UsernamePasswordAuthenticationToken.unauthenticated(loginDTO.getUsername(),
                 loginDTO.getPassword());
         Authentication authenticationResponse = this.authenticationManager.authenticate(authenticationRequest);
-        User user =userService.getUserByUsername(loginDTO.getUsername());
+        User user =userService.getUserByUsernameOrEmail(loginDTO.getUsername());
         UserDTO userDTO = new UserDTO();
         userDTO.setName(user.getName());
         userDTO.setUsername(user.getUsername());
@@ -70,6 +70,7 @@ public class UserController {
         userDTO.setBirthdate(user.getBirthdate());
         userDTO.setJSessionID(request.getSession(true).getId());
         userDTO.setActive(user.getActive());
+        userDTO.setGroupName(user.getGroupName());
         userDTO.setToken(jwtUtil.generateToken(user));
         return userDTO;
     }

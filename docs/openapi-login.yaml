@@ -1,0 +1,200 @@
+openapi: 3.0.3
+info:
+  title: OPB Administration Backend Login API
+  version: 1.0.0
+  description: >
+    Login endpoint contract for OPB Administration Backend. This document
+    specifies the username-or-email login behavior for the existing
+    /api/user/login endpoint.
+servers:
+  - url: http://localhost:8080/api
+    description: Local Spring Boot server
+  - url: https://api-openbox.brimon.ca/api
+    description: Production API, if deployed with the documented context path
+tags:
+  - name: User
+    description: User authentication and profile APIs
+paths:
+  /user/login:
+    post:
+      tags:
+        - User
+      summary: Log in with username or email
+      description: >
+        Authenticates an active user with a password. The request field is named
+        username for backward compatibility, but it accepts either the user's
+        canonical username or the user's email address. On success, the response
+        returns user profile fields and a JWT whose subject is the canonical
+        username.
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              usernameLogin:
+                summary: Login using username
+                value:
+                  username: raynold
+                  password: correct-password
+              emailLogin:
+                summary: Login using email
+                value:
+                  username: raynold@example.com
+                  password: correct-password
+      responses:
+        "200":
+          description: Login succeeded.
+          headers:
+            Set-Cookie:
+              description: >
+                Servlet container may set a JSESSIONID cookie because the
+                controller reads/creates the HTTP session.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserLoginResponse"
+              examples:
+                success:
+                  summary: Successful login
+                  value:
+                    username: raynold
+                    name: Raynold Wong
+                    roles: manager
+                    birthdate: "1990-01-15"
+                    address: 123 Example Street
+                    phoneNumber: "6045550100"
+                    email: raynold@example.com
+                    JSessionID: 03BF94E92873D84D44D2B1FBA27F3B0A
+                    token: eyJhbGciOiJIUzI1NiJ9.example.signature
+                    active: 1
+                    groupName: surrey
+        "400":
+          description: Request body is missing or malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                malformed:
+                  value:
+                    timestamp: "2026-04-29T21:00:00.000+00:00"
+                    status: 400
+                    error: Bad Request
+                    path: /api/user/login
+        "401":
+          description: Username/email does not exist, user is inactive, or password is incorrect.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                unauthorized:
+                  value:
+                    timestamp: "2026-04-29T21:00:00.000+00:00"
+                    status: 401
+                    error: Unauthorized
+                    path: /api/user/login
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: >
+            Login identifier. For backward compatibility this property remains
+            named username, but it accepts either the user's username or email
+            address.
+          examples:
+            - raynold
+            - raynold@example.com
+        password:
+          type: string
+          minLength: 1
+          format: password
+          description: Raw password to verify against the stored bcrypt password.
+          example: correct-password
+    UserLoginResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          description: Canonical username from the user record.
+          example: raynold
+        name:
+          type: string
+          example: Raynold Wong
+        roles:
+          type: string
+          description: Persisted role string.
+          example: manager
+        birthdate:
+          type: string
+          format: date
+          nullable: true
+          example: "1990-01-15"
+        JSessionID:
+          type: string
+          description: Current servlet session id returned by the controller.
+          example: 03BF94E92873D84D44D2B1FBA27F3B0A
+        legalname:
+          type: string
+          nullable: true
+          description: Field exists on UserDTO but is not currently populated by login.
+        address:
+          type: string
+          nullable: true
+          example: 123 Example Street
+        phoneNumber:
+          type: string
+          nullable: true
+          example: "6045550100"
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: raynold@example.com
+        token:
+          type: string
+          description: JWT signed with secret.jwt. Subject is the canonical username.
+          example: eyJhbGciOiJIUzI1NiJ9.example.signature
+        active:
+          type: integer
+          nullable: true
+          description: Account active flag. Existing code uses 1 for active and 0 for inactive.
+          enum:
+            - 0
+            - 1
+          example: 1
+        groupName:
+          type: string
+          nullable: true
+          description: Field exists on UserDTO but may not be populated by login until controller mapping is updated.
+          example: surrey
+    ErrorResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
