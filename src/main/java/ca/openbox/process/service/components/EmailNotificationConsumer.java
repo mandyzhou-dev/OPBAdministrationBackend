@@ -28,7 +28,7 @@ public class EmailNotificationConsumer {
                     //1.Retreive the name of applicant
                     String applicant = leaveApplication.getApplicant();
                     //2.Construct the subject
-                    String subject =  String.format("Leave Request Submitted – %s", applicant);
+                    String subject =  String.format("Time Off Request Submitted – %s", applicant);
                     //3.Construct the body
                     //3.1Formatter
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a", Locale.US);

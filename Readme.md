@@ -147,6 +147,8 @@ Login logic lives in `UserController.login(...)` (`src/main/java/ca/openbox/user
 
 Email-login support is documented in [docs/login-email-support-plan.md](docs/login-email-support-plan.md). The Swagger/OpenAPI contract for the username-or-email login interface is available at [docs/openapi-login.yaml](docs/openapi-login.yaml).
 
+Employee probation checks and email dispatch workflows are documented in the repo-local Codex skill [.codex/skills/opb-employee-probation-email-workflows/SKILL.md](.codex/skills/opb-employee-probation-email-workflows/SKILL.md).
+
 Main routes:
 
 - `POST /api/user/login`
@@ -361,6 +363,8 @@ Responsibilities:
 - `Cryptor`: AES encryption/decryption.
 - `ApplicationVariableService`: reads and writes key-value settings in `opb_application_variables`.
 - `SecurityConfiguration`: configures CORS, password encoding, authentication, and broad endpoint permissions.
+
+The complete email dispatch workflow is documented in [.codex/skills/opb-employee-probation-email-workflows/SKILL.md](.codex/skills/opb-employee-probation-email-workflows/SKILL.md).
 
 ## Database
 
