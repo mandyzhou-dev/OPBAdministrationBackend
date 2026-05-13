@@ -35,7 +35,7 @@ public class SecurityConfiguration {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.addAllowedOrigin("http://localhost:8081");
         configuration.addAllowedMethod("*");
-        configuration.setAllowedMethods(Arrays.asList("POST","GET", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("POST","GET", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.addAllowedOriginPattern("*");
         configuration.setAllowCredentials(true);
         configuration.addAllowedHeader("*");
@@ -49,6 +49,7 @@ public class SecurityConfiguration {
         http.authorizeHttpRequests(authorize ->
                         authorize
                                 .requestMatchers(HttpMethod.PUT,"/shift/**").permitAll()
+                                .requestMatchers(HttpMethod.PATCH,"/shift/**").permitAll()
                                 .requestMatchers(HttpMethod.POST,"/shift/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/**").permitAll()
                                 .requestMatchers(HttpMethod.POST,"/user/**").permitAll()

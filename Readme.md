@@ -187,12 +187,25 @@ Important classes:
 - `WeekScheduleService`
 - `StatutoryHolidayController`
 
+排班逻辑（增删改查） lives in `src/main/java/ca/openbox/shift/controller/ShiftArrangementController.java`, backed by `src/main/java/ca/openbox/shift/service/ShiftArrangementService.java` and `src/main/java/ca/openbox/shift/repository/ShiftArrangementRepository.java`. The request DTOs are `ShiftArrangementDTO` for single-shift create/update/delete and `BatchCreateShiftByDateDTO` for batch daily creation. Read/query scheduling endpoints are exposed separately through `src/main/java/ca/openbox/shift/presentor/ShiftPresentor.java`.
+
+Manual shift status changes and paid sick leave quota are documented in [docs/shift-status-paid-sick-leave-backend.md](docs/shift-status-paid-sick-leave-backend.md). Key rules:
+
+- Managers may write only `no_show`, `paid_sick_leave`, or `unpaid_sick_leave` through the manual status API; there is no reset/active write endpoint for this feature.
+- `paid_sick_leave` quota is calculated by distinct `America/Vancouver` calendar days and calendar years. Multiple paid sick leave shifts for the same employee on the same Vancouver local date count as 1 used day.
+- `bigDay == null` is treated as probation / not eligible for paid sick leave.
+- `cancelled`, `no_show`, `paid_sick_leave`, and `unpaid_sick_leave` are non-worked statuses for worked hours and KPI input.
+- Schedule projections must still return non-worked statuses so the frontend can show status colors to employees.
+- Browser-facing `PATCH` endpoints must update Spring Security CORS allowed methods, the security method allowlist, MVC CORS methods, and preflight tests.
+
 Main routes:
 
 - `PUT /api/shift/shiftarrangement`
 - `PUT /api/shift/shiftarrangement/batchCreateByDate`
 - `PUT /api/shift/shiftarrangement/deleteCurrentShift`
 - `PUT /api/shift/shiftarrangement/modifyCurrentShift`
+- `PATCH /api/shift/shiftarrangement/{id}/status`
+- `GET /api/shift/shiftarrangement/{id}/paid-sick-leave-quota?operatorUsername=...`
 - `GET /api/presentor/shift/getShiftByStartDateScope`
 - `GET /api/presentor/shift/{username}/getMyShiftByStartDateScope`
 - `GET /api/presentor/shift/{username}/findVisibleShifts`
@@ -419,13 +432,18 @@ Run tests:
 mvn test
 ```
 
-There is currently no `src/test` directory, so Maven test execution only verifies compilation unless tests are added.
+Run targeted shift status / paid sick leave / CORS tests:
+
+```bash
+mvn test -Dtest=ShiftStatusTest,ShiftArrangementServiceTest,WorkLoadCalculatorTest
+mvn test -Dtest=SecurityConfigurationTest,ShiftArrangementControllerCorsTest
+```
 
 ## Notes for Maintainers
 
 - Most endpoints are currently permitted by `SecurityConfiguration`; JWTs are generated on login but there is no request filter enforcing JWT authentication.
-- CORS is mainly configured for `http://localhost:8081`.
+- CORS is mainly configured for `http://localhost:8081`. When adding browser-facing methods such as `PATCH`, update Spring Security CORS allowed methods, Spring Security request matchers, MVC CORS methods, and preflight tests together.
 - Several workflows depend on hard-coded role/group strings such as `manager`, `tester`, `surrey`, and `public`.
 - Leave and resignation notifications use in-memory blocking queues and manually started consumer threads. Queued messages are not durable across process restarts.
-- Time handling uses `ZonedDateTime` heavily, with Vancouver-specific logic in schedule copying, preferred dates, and some statistics.
+- Time handling uses `ZonedDateTime` heavily, with Vancouver-specific logic in schedule copying, preferred dates, statistics, KPI input, and paid sick leave quota.
 - The README describes the code as it exists now; API behavior should be verified when changing controllers or repository query methods.

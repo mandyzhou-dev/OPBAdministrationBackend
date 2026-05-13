@@ -1,21 +1,38 @@
 package ca.openbox.shift.service;
 
 import ca.openbox.shift.dataobject.ShiftArrangementDO;
+import ca.openbox.shift.dto.PaidSickLeaveQuotaDTO;
 import ca.openbox.shift.entities.ShiftArrangement;
+import ca.openbox.shift.entities.ShiftStatus;
 import ca.openbox.shift.repository.ShiftArrangementRepository;
-import ca.openbox.statistics.service.WorkTimeStatisticService;
+import ca.openbox.user.dataobject.UserDO;
+import ca.openbox.user.repository.UserRepository;
+import ca.openbox.user.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class ShiftArrangementService {
+    private static final int PAID_SICK_LEAVE_QUOTA_DAYS = 5;
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Vancouver");
+
     @Autowired
     ShiftArrangementRepository shiftArrangementRepository;
+    @Autowired
+    UserRepository userRepository;
+    @Autowired
+    UserService userService;
 
     public ShiftArrangement addArrangement(ShiftArrangement shiftArrangement){
         if(shiftArrangementRepository
@@ -33,21 +50,134 @@ public class ShiftArrangementService {
         shiftArrangementRepository.delete(shiftArrangement.getDO());
     }
     public ShiftArrangement modifyArrangement(ShiftArrangement shiftArrangement){
+        if (shiftArrangement.getStatus() == null && shiftArrangement.getId() != null) {
+            shiftArrangementRepository.findById(shiftArrangement.getId())
+                    .ifPresent(existing -> shiftArrangement.setStatus(existing.getStatus()));
+        }
         ShiftArrangementDO modifiedShiftArrangementDO=shiftArrangementRepository.save(shiftArrangement.getDO());
         return ShiftArrangement.fromDO(modifiedShiftArrangementDO);
     }
 
-    public List<ShiftArrangement> getByGroupAndDate(String groupName, ZonedDateTime date){
-        ZonedDateTime start = date.withHour(0).withMinute(0).withSecond(0);
-        ZonedDateTime end = date.withHour(23).withMinute(59).withSecond(59);
-        List<ShiftArrangementDO> shiftArrangementDOList = shiftArrangementRepository.getShiftArrangementDOByGroupAndStartBetween(groupName, start, end);
-        return shiftArrangementDOList.stream().map(o -> ShiftArrangement.fromDO(o)).collect(Collectors.toList());
-    }
-    public List<ShiftArrangement> getByUserAndGroupAndDate(String username, String groupName, ZonedDateTime date){
-        ZonedDateTime start = date.withHour(0).withMinute(0).withSecond(0);
-        ZonedDateTime end = date.withHour(23).withMinute(59).withSecond(59);
-        List<ShiftArrangementDO> shiftArrangementDOList = shiftArrangementRepository.getShiftArrangementDOByUsernameAndGroupAndStartBetween(username, groupName, start, end);
-        return shiftArrangementDOList.stream().map(o -> ShiftArrangement.fromDO(o)).collect(Collectors.toList());
+    public ShiftArrangement updateStatus(Integer shiftId, String newStatus, String operatorUsername) {
+        ShiftArrangementDO shift = getShiftOrThrow(shiftId);
+        assertManager(operatorUsername);
+        assertManualStatusTarget(newStatus);
+
+        if (ShiftStatus.PAID_SICK_LEAVE_VALUE.equals(newStatus)) {
+            PaidSickLeaveQuotaDTO quota = buildPaidSickLeaveQuota(shift);
+            if (quota.isProbation()) {
+                throw new IllegalStateException("Employee is still in probation");
+            }
+            if (!quota.isCanMarkPaidSickLeave()) {
+                throw new IllegalStateException("Paid sick leave quota used up");
+            }
+        }
+
+        shift.setStatus(newStatus);
+        return ShiftArrangement.fromDO(shiftArrangementRepository.save(shift));
     }
 
+    public PaidSickLeaveQuotaDTO getPaidSickLeaveQuota(Integer shiftId, String operatorUsername) {
+        ShiftArrangementDO shift = getShiftOrThrow(shiftId);
+        assertManager(operatorUsername);
+        return buildPaidSickLeaveQuota(shift);
+    }
+
+    public List<ShiftArrangement> getByGroupAndDate(String groupName, ZonedDateTime date){
+        LocalDate businessDate = toBusinessDate(date);
+        ZonedDateTime start = businessDate.atStartOfDay(BUSINESS_ZONE);
+        ZonedDateTime end = start.plusDays(1).minusNanos(1);
+        List<ShiftArrangementDO> shiftArrangementDOList = shiftArrangementRepository.getShiftArrangementDOByGroupAndStartBetween(groupName, start, end);
+        return shiftArrangementDOList.stream()
+                .filter(o -> !ShiftStatus.isNonWorked(o.getStatus()))
+                .map(o -> ShiftArrangement.fromDO(o))
+                .collect(Collectors.toList());
+    }
+    public List<ShiftArrangement> getByUserAndGroupAndDate(String username, String groupName, ZonedDateTime date){
+        LocalDate businessDate = toBusinessDate(date);
+        ZonedDateTime start = businessDate.atStartOfDay(BUSINESS_ZONE);
+        ZonedDateTime end = start.plusDays(1).minusNanos(1);
+        List<ShiftArrangementDO> shiftArrangementDOList = shiftArrangementRepository.getShiftArrangementDOByUsernameAndGroupAndStartBetween(username, groupName, start, end);
+        return shiftArrangementDOList.stream()
+                .filter(o -> !ShiftStatus.isNonWorked(o.getStatus()))
+                .map(o -> ShiftArrangement.fromDO(o))
+                .collect(Collectors.toList());
+    }
+
+    private ShiftArrangementDO getShiftOrThrow(Integer shiftId) {
+        return shiftArrangementRepository.findById(shiftId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shift not found"));
+    }
+
+    private void assertManager(String operatorUsername) {
+        UserDO operator = userRepository.getUserDOByUsernameAndActiveIsTrue(operatorUsername);
+        if (operator == null || !isManager(operator)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only Manager can change shift status");
+        }
+    }
+
+    private boolean isManager(UserDO operator) {
+        if ("manager".equalsIgnoreCase(operator.getGroupName())) {
+            return true;
+        }
+        String roles = operator.getRoles();
+        if (roles == null || roles.isBlank()) {
+            return false;
+        }
+        for (String role : roles.split("\\|")) {
+            if ("manager".equalsIgnoreCase(role.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void assertManualStatusTarget(String status) {
+        if (!ShiftStatus.isAllowedManualTarget(status)) {
+            throw new IllegalArgumentException("Invalid shift status target: " + status);
+        }
+    }
+
+    private PaidSickLeaveQuotaDTO buildPaidSickLeaveQuota(ShiftArrangementDO shift) {
+        LocalDate targetDate = toBusinessDate(shift.getStart());
+        int targetYear = targetDate.getYear();
+        Set<LocalDate> usedDates = getPaidSickLeaveDates(shift.getUsername(), targetYear);
+        boolean probation = userService.isInProbation(shift.getUsername());
+        boolean targetDateAlreadyCounted = usedDates.contains(targetDate);
+
+        PaidSickLeaveQuotaDTO quota = new PaidSickLeaveQuotaDTO();
+        quota.setUsername(shift.getUsername());
+        quota.setYear(targetYear);
+        quota.setUsedDays(usedDates.size());
+        quota.setQuotaDays(PAID_SICK_LEAVE_QUOTA_DAYS);
+        quota.setProbation(probation);
+        quota.setEligible(!probation);
+        quota.setTargetDateAlreadyCounted(targetDateAlreadyCounted);
+        quota.setCanMarkPaidSickLeave(!probation
+                && (usedDates.size() < PAID_SICK_LEAVE_QUOTA_DAYS || targetDateAlreadyCounted));
+        quota.setMessage("Used " + usedDates.size() + "/" + PAID_SICK_LEAVE_QUOTA_DAYS);
+        return quota;
+    }
+
+    private Set<LocalDate> getPaidSickLeaveDates(String username, int year) {
+        ZonedDateTime yearStart = LocalDate.of(year, 1, 1).atStartOfDay(BUSINESS_ZONE);
+        ZonedDateTime nextYearStart = yearStart.plusYears(1);
+        List<ShiftArrangementDO> paidSickLeaveShifts =
+                shiftArrangementRepository.getShiftArrangementDOByUsernameAndStatusAndStartBetween(
+                        username,
+                        ShiftStatus.PAID_SICK_LEAVE_VALUE,
+                        yearStart,
+                        nextYearStart.minusNanos(1)
+                );
+
+        Set<LocalDate> dates = new HashSet<>();
+        for (ShiftArrangementDO paidSickLeaveShift : paidSickLeaveShifts) {
+            dates.add(toBusinessDate(paidSickLeaveShift.getStart()));
+        }
+        return dates;
+    }
+
+    private LocalDate toBusinessDate(ZonedDateTime time) {
+        return time.withZoneSameInstant(BUSINESS_ZONE).toLocalDate();
+    }
 }

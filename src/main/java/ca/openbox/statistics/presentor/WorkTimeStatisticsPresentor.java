@@ -1,6 +1,7 @@
 package ca.openbox.statistics.presentor;
 
 import ca.openbox.shift.presentation.ShiftPresentation;
+import ca.openbox.shift.entities.ShiftStatus;
 import ca.openbox.shift.presentor.ShiftPresentor;
 import ca.openbox.shift.repository.ShiftPresentationRepository;
 import ca.openbox.statistics.presentation.WorkTimeStatistic;
@@ -33,6 +34,10 @@ public class WorkTimeStatisticsPresentor {
         ZoneId vancouverZone = ZoneId.of("America/Vancouver");
 
         for (int i = 0; i < shiftList.size(); ++i) {
+            if (ShiftStatus.isNonWorked(shiftList.get(i).getStatus())) {
+                continue;
+            }
+
             WorkTimeStatistic workTimeStatistic = new WorkTimeStatistic();
             String username = shiftList.get(i).getUsername();
 

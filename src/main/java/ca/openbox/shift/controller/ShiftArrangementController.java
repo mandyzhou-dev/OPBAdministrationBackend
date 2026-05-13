@@ -1,7 +1,9 @@
 package ca.openbox.shift.controller;
 
 import ca.openbox.shift.dto.BatchCreateShiftByDateDTO;
+import ca.openbox.shift.dto.PaidSickLeaveQuotaDTO;
 import ca.openbox.shift.dto.ShiftArrangementDTO;
+import ca.openbox.shift.dto.ShiftStatusUpdateDTO;
 import ca.openbox.shift.entities.ShiftArrangement;
 import ca.openbox.shift.repository.ShiftArrangementRepository;
 import ca.openbox.shift.service.ShiftArrangementService;
@@ -59,5 +61,22 @@ public class ShiftArrangementController {
     public ShiftArrangement modifyArrangement(@RequestBody ShiftArrangementDTO shiftArrangementDTO){
         ShiftArrangement shiftArrangement = ShiftArrangement.fromDTO(shiftArrangementDTO);
         return shiftArrangementService.modifyArrangement(shiftArrangement);
+    }
+
+    @CrossOrigin(origins = "http://localhost:8081")
+    @PatchMapping("/{id}/status")
+    public ShiftArrangement updateStatus(@PathVariable Integer id, @RequestBody ShiftStatusUpdateDTO shiftStatusUpdateDTO) {
+        return shiftArrangementService.updateStatus(
+                id,
+                shiftStatusUpdateDTO.getStatus(),
+                shiftStatusUpdateDTO.getOperatorUsername()
+        );
+    }
+
+    @CrossOrigin(origins = "http://localhost:8081")
+    @GetMapping("/{id}/paid-sick-leave-quota")
+    public PaidSickLeaveQuotaDTO getPaidSickLeaveQuota(@PathVariable Integer id,
+                                                       @RequestParam String operatorUsername) {
+        return shiftArrangementService.getPaidSickLeaveQuota(id, operatorUsername);
     }
 }

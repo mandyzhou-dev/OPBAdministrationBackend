@@ -30,5 +30,22 @@ public class ShiftExceptionHandler {
                 "message", ex.getMessage()
         );
     }
-}
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleIllegalArgument(IllegalArgumentException ex) {
+        return Map.of(
+                "error", "INVALID_SHIFT_REQUEST",
+                "message", ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleIllegalState(IllegalStateException ex) {
+        return Map.of(
+                "error", "SHIFT_STATUS_NOT_ALLOWED",
+                "message", ex.getMessage()
+        );
+    }
+}

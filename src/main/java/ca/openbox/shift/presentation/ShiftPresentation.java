@@ -18,4 +18,5 @@ public class ShiftPresentation {
     private ZonedDateTime end;
 
     private String groupName;
+    private String status;
 }
