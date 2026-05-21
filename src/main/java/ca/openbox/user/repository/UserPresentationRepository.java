@@ -9,6 +9,7 @@ import java.util.List;
 
 public interface UserPresentationRepository extends JpaRepository<UserPresentation, String> {
     public Collection<UserPresentation> findByRolesContainingOrderByActiveDesc(String role);
+    public Collection<UserPresentation> findByRolesContainingAndActiveOrderByNameAsc(String role, Integer active);
     public List<UserPresentation> findByRolesLikeAndActiveIsTrue(String role);
     public Collection<UserPresentation> findByGroupNameLikeAndActiveIsTrue(String groupName);
 }

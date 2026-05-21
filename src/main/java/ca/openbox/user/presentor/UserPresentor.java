@@ -1,5 +1,6 @@
 package ca.openbox.user.presentor;
 
+import ca.openbox.user.dto.EmployeeOptionDTO;
 import ca.openbox.user.presentation.UserPresentation;
 import ca.openbox.user.repository.UserPresentationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,17 @@ public class UserPresentor {
     public Collection<UserPresentation> getEmployeeBasicInfo(){
         //!hard-encoding
         return userPresentationRepository.findByRolesContainingOrderByActiveDesc("tester");
+    }
+
+    @CrossOrigin(origins = "http://localhost:8081")
+    @GetMapping("/employees/options")
+    public Collection<EmployeeOptionDTO> getEmployeeOptions(@RequestParam(value = "activeOnly", required = false, defaultValue = "true") boolean activeOnly){
+        Collection<UserPresentation> employees = activeOnly
+                ? userPresentationRepository.findByRolesContainingAndActiveOrderByNameAsc("tester", 1)
+                : userPresentationRepository.findByRolesContainingOrderByActiveDesc("tester");
+        return employees.stream()
+                .map(EmployeeOptionDTO::fromPresentation)
+                .toList();
     }
 /*    @CrossOrigin(origins = "http://localhost:8081")
     @GetMapping("/getUserByUsername")

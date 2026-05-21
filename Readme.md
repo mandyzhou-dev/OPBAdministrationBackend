@@ -149,6 +149,8 @@ Email-login support is documented in [docs/login-email-support-plan.md](docs/log
 
 Employee probation checks and email dispatch workflows are documented in the repo-local Codex skill [.codex/skills/opb-employee-probation-email-workflows/SKILL.md](.codex/skills/opb-employee-probation-email-workflows/SKILL.md).
 
+Backend API changes that touch permissions, frontend contracts, filters, pagination, or database implications should follow the repo-local Codex skill [.codex/skills/opb-backend-api-boundary-workflow/SKILL.md](.codex/skills/opb-backend-api-boundary-workflow/SKILL.md).
+
 Main routes:
 
 - `POST /api/user/login`
@@ -163,6 +165,7 @@ Main routes:
 - `GET /api/presentor/user/getUserByRoleName?role=...`
 - `GET /api/presentor/user/getUserByGroupName?group=...`
 - `GET /api/presentor/user/employees/basic`
+- `GET /api/presentor/user/employees/options?activeOnly=true`
 
 ### Shift Scheduling
 
@@ -217,6 +220,10 @@ Main routes:
 - `POST /api/shift/preset`
 - `GET /api/shift/statutory-holidays`
 
+## Cross-Stack Planning Notes
+
+Reusable Fullstack Architect notes for Application History planning, UI scope control, API boundaries, database-change handling, and verification are captured in [plans/fullstack-architect-reusable-notes-2026-05-20.md](plans/fullstack-architect-reusable-notes-2026-05-20.md).
+
 ### KPI
 
 Package: `ca.openbox.shift.application` and `ca.openbox.shift.service.KPI`
@@ -263,14 +270,26 @@ Responsibilities:
 - Submit leave applications.
 - Approve, reject, delete, and annotate applications.
 - Query applications by handler, applicant, or all non-pending applications.
+- Query manager-visible History as a paged list, optionally filtered by employee.
 - Queue email notifications for handlers when a leave application is submitted.
 
 Important classes:
 
 - `LeaveApplicationController`
 - `LeaveApplicationService`
+- `ApplicationHistoryAccessPolicy`
 - `ApplicationStatusChangeMessageQueue`
 - `EmailNotificationConsumer`
+
+Admin History employee filtering is documented in the repo-local Codex skill [.codex/skills/opb-backend-api-boundary-workflow/SKILL.md](.codex/skills/opb-backend-api-boundary-workflow/SKILL.md). Current contract:
+
+- `GET /api/process/application/history`
+- Required query param: `operatorUsername`
+- Optional query params: `employeeUsername`, `page`, `size`, `sort`
+- Blank or missing `employeeUsername` means all employees.
+- Response is a paged wrapper with `content`, `page`, `size`, `totalElements`, `totalPages`, and `sort`; no results return an empty `content` array.
+- Current access is Manager-only through `ApplicationHistoryAccessPolicy`; the policy boundary is reserved for future visibility scopes such as Team Leader team-member access.
+- No database table, field, constraint, or data migration is required for this feature.
 
 Main routes:
 
@@ -279,6 +298,7 @@ Main routes:
 - `POST /api/process/application/{applicationID}/reject`
 - `DELETE /api/process/application/{applicationID}`
 - `GET /api/process/application`
+- `GET /api/process/application/history?operatorUsername=...&employeeUsername=...&page=0&size=20&sort=submitTime,desc`
 - `PUT /api/process/application/{applicationID}/note`
 
 ### Resignations and Employment

@@ -2,6 +2,7 @@ package ca.openbox.process.controller;
 
 import ca.openbox.infrastructure.email.service.WebhookEmailService;
 import ca.openbox.process.dto.LeaveApplicationDTO;
+import ca.openbox.process.dto.PageResponseDTO;
 import ca.openbox.process.dto.PutLeaveApplicationDTO;
 import ca.openbox.process.entities.LeaveApplication;
 import ca.openbox.process.service.EmailService;
@@ -66,6 +67,16 @@ public class LeaveApplicationController {
             return leaveApplicationService.getApplicationsByApplicant(applicant);
         }
         return leaveApplicationService.getAllApplications();
+    }
+
+    @CrossOrigin(origins ="http://localhost:8081",methods = {RequestMethod.GET})
+    @GetMapping("/application/history")
+    public PageResponseDTO<LeaveApplication> getApplicationHistory(@RequestParam(value = "operatorUsername") String operatorUsername,
+                                                                   @RequestParam(value = "employeeUsername",required = false) String employeeUsername,
+                                                                   @RequestParam(value = "page",required = false, defaultValue = "0") int page,
+                                                                   @RequestParam(value = "size",required = false, defaultValue = "20") int size,
+                                                                   @RequestParam(value = "sort",required = false, defaultValue = "submitTime,desc") String sort){
+        return leaveApplicationService.getHistory(employeeUsername, page, size, sort, operatorUsername);
     }
 
     @CrossOrigin(origins = "http://localhost:8081")
