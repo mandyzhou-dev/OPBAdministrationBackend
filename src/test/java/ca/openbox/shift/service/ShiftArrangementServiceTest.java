@@ -2,9 +2,12 @@ package ca.openbox.shift.service;
 
 import ca.openbox.shift.dataobject.ShiftArrangementDO;
 import ca.openbox.shift.dto.PaidSickLeaveQuotaDTO;
+import ca.openbox.shift.dto.ShiftCandidateDTO;
 import ca.openbox.shift.entities.ShiftArrangement;
 import ca.openbox.shift.repository.ShiftArrangementRepository;
 import ca.openbox.user.dataobject.UserDO;
+import ca.openbox.user.presentation.UserPresentation;
+import ca.openbox.user.repository.UserPresentationRepository;
 import ca.openbox.user.repository.UserRepository;
 import ca.openbox.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +32,8 @@ class ShiftArrangementServiceTest {
 
     private ShiftArrangementRepository shiftArrangementRepository;
     private UserRepository userRepository;
+    private UserPresentationRepository userPresentationRepository;
+    private EmployeePreferWorkdayBoardService employeePreferWorkdayBoardService;
     private UserService userService;
     private ShiftArrangementService shiftArrangementService;
 
@@ -36,12 +41,53 @@ class ShiftArrangementServiceTest {
     void setUp() {
         shiftArrangementRepository = mock(ShiftArrangementRepository.class);
         userRepository = mock(UserRepository.class);
+        userPresentationRepository = mock(UserPresentationRepository.class);
+        employeePreferWorkdayBoardService = mock(EmployeePreferWorkdayBoardService.class);
         userService = mock(UserService.class);
 
         shiftArrangementService = new ShiftArrangementService();
         shiftArrangementService.shiftArrangementRepository = shiftArrangementRepository;
         shiftArrangementService.userRepository = userRepository;
+        shiftArrangementService.userPresentationRepository = userPresentationRepository;
+        shiftArrangementService.employeePreferWorkdayBoardService = employeePreferWorkdayBoardService;
         shiftArrangementService.userService = userService;
+    }
+
+    @Test
+    void candidatesByDateMarksPreferredAndAlreadyScheduledEmployees() {
+        ZonedDateTime selected = ZonedDateTime.of(2026, 5, 21, 22, 30, 0, 0, ZoneId.of("UTC"));
+        ZonedDateTime dayStart = ZonedDateTime.of(2026, 5, 21, 0, 0, 0, 0, ZoneId.of("America/Vancouver"));
+        ZonedDateTime dayEnd = dayStart.plusDays(1).minusNanos(1);
+        when(userPresentationRepository.findByRolesContainingAndActiveOrderByNameAsc("tester", 1))
+                .thenReturn(List.of(
+                        employee("zoe", null, "surrey"),
+                        employee("alice", "Alice Chen", "surrey"),
+                        employee("bob", "Bob Lee", "coquitlam")
+                ));
+        when(employeePreferWorkdayBoardService.getPreferredEmployeesBydate(selected))
+                .thenReturn(List.of("alice", "bob"));
+        when(shiftArrangementRepository.getShiftArrangementDOByStartBetween(dayStart, dayEnd))
+                .thenReturn(List.of(
+                        shift(9, "bob", "active", vancouverTime(2026, 5, 21, 14)),
+                        shift(3, "bob", "paid_sick_leave", vancouverTime(2026, 5, 21, 9))
+                ));
+
+        List<ShiftCandidateDTO> candidates = shiftArrangementService.getCandidatesByDate(selected, "surrey", "tester");
+
+        assertEquals(3, candidates.size());
+        assertEquals("alice", candidates.get(0).getUsername());
+        assertEquals("Alice Chen", candidates.get(0).getName());
+        assertTrue(candidates.get(0).isPreferred());
+        assertFalse(candidates.get(0).isAlreadyScheduled());
+        assertEquals("bob", candidates.get(1).getUsername());
+        assertTrue(candidates.get(1).isPreferred());
+        assertTrue(candidates.get(1).isAlreadyScheduled());
+        assertEquals(3, candidates.get(1).getExistingShiftId());
+        assertEquals("paid_sick_leave", candidates.get(1).getExistingShiftStatus());
+        assertEquals("zoe", candidates.get(2).getUsername());
+        assertEquals("zoe", candidates.get(2).getName());
+        assertFalse(candidates.get(2).isPreferred());
+        assertFalse(candidates.get(2).isAlreadyScheduled());
     }
 
     @Test
@@ -142,6 +188,16 @@ class ShiftArrangementServiceTest {
         user.setUsername("manager");
         user.setRoles("Manager");
         user.setGroupName("manager");
+        user.setActive(1);
+        return user;
+    }
+
+    private UserPresentation employee(String username, String name, String groupName) {
+        UserPresentation user = new UserPresentation();
+        user.setUsername(username);
+        user.setName(name);
+        user.setGroupName(groupName);
+        user.setRoles("tester");
         user.setActive(1);
         return user;
     }

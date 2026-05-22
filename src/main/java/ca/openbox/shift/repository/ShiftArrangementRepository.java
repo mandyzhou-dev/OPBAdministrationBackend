@@ -11,6 +11,7 @@ import java.util.List;
 public interface ShiftArrangementRepository extends JpaRepository<ShiftArrangementDO, Integer> {
     List<ShiftArrangementDO> getShiftArrangementDOByUsernameAndStartBetween(String username, ZonedDateTime left, ZonedDateTime right);
     List<ShiftArrangementDO> getShiftArrangementDOByUsernameAndStatusAndStartBetween(String username, String status, ZonedDateTime left, ZonedDateTime right);
+    List<ShiftArrangementDO> getShiftArrangementDOByStartBetween(ZonedDateTime start, ZonedDateTime end);
     List<ShiftArrangementDO> getShiftArrangementDOByGroupAndStartBetween(String groupName, ZonedDateTime start, ZonedDateTime end);
     List<ShiftArrangementDO> getShiftArrangementDOByUsernameAndGroupAndStartBetween(String username, String groupName, ZonedDateTime start, ZonedDateTime end);
 }

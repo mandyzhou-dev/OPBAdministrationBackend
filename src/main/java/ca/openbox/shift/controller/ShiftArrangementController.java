@@ -3,6 +3,7 @@ package ca.openbox.shift.controller;
 import ca.openbox.shift.dto.BatchCreateShiftByDateDTO;
 import ca.openbox.shift.dto.PaidSickLeaveQuotaDTO;
 import ca.openbox.shift.dto.ShiftArrangementDTO;
+import ca.openbox.shift.dto.ShiftCandidateDTO;
 import ca.openbox.shift.dto.ShiftStatusUpdateDTO;
 import ca.openbox.shift.entities.ShiftArrangement;
 import ca.openbox.shift.repository.ShiftArrangementRepository;
@@ -71,6 +72,14 @@ public class ShiftArrangementController {
                 shiftStatusUpdateDTO.getStatus(),
                 shiftStatusUpdateDTO.getOperatorUsername()
         );
+    }
+
+    @CrossOrigin(origins = "http://localhost:8081", allowCredentials = "true")
+    @GetMapping("/candidatesByDate")
+    public List<ShiftCandidateDTO> getCandidatesByDate(@RequestParam(value = "date") ZonedDateTime date,
+                                                       @RequestParam(value = "groupName", required = false) String groupName,
+                                                       @RequestParam(value = "role", required = false, defaultValue = "tester") String role) {
+        return shiftArrangementService.getCandidatesByDate(date, groupName, role);
     }
 
     @CrossOrigin(origins = "http://localhost:8081")

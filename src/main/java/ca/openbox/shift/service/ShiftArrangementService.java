@@ -2,10 +2,13 @@ package ca.openbox.shift.service;
 
 import ca.openbox.shift.dataobject.ShiftArrangementDO;
 import ca.openbox.shift.dto.PaidSickLeaveQuotaDTO;
+import ca.openbox.shift.dto.ShiftCandidateDTO;
 import ca.openbox.shift.entities.ShiftArrangement;
 import ca.openbox.shift.entities.ShiftStatus;
 import ca.openbox.shift.repository.ShiftArrangementRepository;
 import ca.openbox.user.dataobject.UserDO;
+import ca.openbox.user.presentation.UserPresentation;
+import ca.openbox.user.repository.UserPresentationRepository;
 import ca.openbox.user.repository.UserRepository;
 import ca.openbox.user.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,8 +20,12 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,6 +38,10 @@ public class ShiftArrangementService {
     ShiftArrangementRepository shiftArrangementRepository;
     @Autowired
     UserRepository userRepository;
+    @Autowired
+    UserPresentationRepository userPresentationRepository;
+    @Autowired
+    EmployeePreferWorkdayBoardService employeePreferWorkdayBoardService;
     @Autowired
     UserService userService;
 
@@ -104,9 +115,63 @@ public class ShiftArrangementService {
                 .collect(Collectors.toList());
     }
 
+    public List<ShiftCandidateDTO> getCandidatesByDate(ZonedDateTime date, String groupName, String role) {
+        String employeeRole = (role == null || role.isBlank()) ? "tester" : role;
+        LocalDate businessDate = toBusinessDate(date);
+        ZonedDateTime start = businessDate.atStartOfDay(BUSINESS_ZONE);
+        ZonedDateTime end = start.plusDays(1).minusNanos(1);
+
+        Collection<UserPresentation> employees =
+                userPresentationRepository.findByRolesContainingAndActiveOrderByNameAsc(employeeRole, 1);
+        Set<String> preferredUsernames = new HashSet<>(employeePreferWorkdayBoardService.getPreferredEmployeesBydate(date));
+        Map<String, ShiftArrangementDO> shiftsByUsername = getLowestIdShiftByUsername(start, end);
+
+        return employees.stream()
+                .sorted(Comparator.comparing(this::displayName, String.CASE_INSENSITIVE_ORDER))
+                .map(employee -> toCandidate(employee, preferredUsernames, shiftsByUsername))
+                .collect(Collectors.toList());
+    }
+
     private ShiftArrangementDO getShiftOrThrow(Integer shiftId) {
         return shiftArrangementRepository.findById(shiftId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shift not found"));
+    }
+
+    private Map<String, ShiftArrangementDO> getLowestIdShiftByUsername(ZonedDateTime start, ZonedDateTime end) {
+        Map<String, ShiftArrangementDO> shiftsByUsername = new HashMap<>();
+        for (ShiftArrangementDO shift : shiftArrangementRepository.getShiftArrangementDOByStartBetween(start, end)) {
+            shiftsByUsername.merge(shift.getUsername(), shift, this::lowerIdShift);
+        }
+        return shiftsByUsername;
+    }
+
+    private ShiftCandidateDTO toCandidate(UserPresentation employee,
+                                          Set<String> preferredUsernames,
+                                          Map<String, ShiftArrangementDO> shiftsByUsername) {
+        ShiftArrangementDO existingShift = shiftsByUsername.get(employee.getUsername());
+        boolean alreadyScheduled = existingShift != null;
+        return new ShiftCandidateDTO(
+                employee.getUsername(),
+                displayName(employee),
+                employee.getGroupName(),
+                preferredUsernames.contains(employee.getUsername()),
+                alreadyScheduled,
+                alreadyScheduled ? existingShift.getId() : null,
+                alreadyScheduled ? existingShift.getStatus() : null
+        );
+    }
+
+    private ShiftArrangementDO lowerIdShift(ShiftArrangementDO left, ShiftArrangementDO right) {
+        int leftId = left.getId() == null ? Integer.MAX_VALUE : left.getId();
+        int rightId = right.getId() == null ? Integer.MAX_VALUE : right.getId();
+        return leftId <= rightId ? left : right;
+    }
+
+    private String displayName(UserPresentation user) {
+        if (user.getName() == null || user.getName().isBlank()) {
+            return user.getUsername();
+        }
+        return user.getName();
     }
 
     private void assertManager(String operatorUsername) {
