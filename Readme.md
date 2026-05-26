@@ -201,6 +201,15 @@ Manual shift status changes and paid sick leave quota are documented in [docs/sh
 - Schedule projections must still return non-worked statuses so the frontend can show status colors to employees.
 - Browser-facing `PATCH` endpoints must update Spring Security CORS allowed methods, the security method allowlist, MVC CORS methods, and preflight tests.
 
+Select shift form candidate state is documented in [docs/shift-candidates-endpoint-backend.md](docs/shift-candidates-endpoint-backend.md). Key rules:
+
+- `GET /api/shift/shiftarrangement/candidatesByDate` is a read-only DTO endpoint for frontend scheduling candidate state.
+- `ShiftCandidateDTO` returns `username`, `name`, `groupName`, `preferred`, `alreadyScheduled`, `existingShiftId`, and `existingShiftStatus`.
+- `preferred` means the employee preference board marks the employee as preferring to work on the selected date.
+- `alreadyScheduled` means the employee already has a shift on the selected `America/Vancouver` business date; frontend selection and submit flows should treat this as disabled.
+- If both flags are true, return both facts and let the frontend apply display priority: `Already scheduled > Selected > Preferred > Normal available`.
+- Do not operate on the database directly for this workflow. If future changes need a table, field, constraint, or data migration, first provide complete SQL in the issue for the user to execute.
+
 Main routes:
 
 - `PUT /api/shift/shiftarrangement`
@@ -209,6 +218,7 @@ Main routes:
 - `PUT /api/shift/shiftarrangement/modifyCurrentShift`
 - `PATCH /api/shift/shiftarrangement/{id}/status`
 - `GET /api/shift/shiftarrangement/{id}/paid-sick-leave-quota?operatorUsername=...`
+- `GET /api/shift/shiftarrangement/candidatesByDate?date=...&groupName=...&role=tester`
 - `GET /api/presentor/shift/getShiftByStartDateScope`
 - `GET /api/presentor/shift/{username}/getMyShiftByStartDateScope`
 - `GET /api/presentor/shift/{username}/findVisibleShifts`
@@ -223,6 +233,8 @@ Main routes:
 ## Cross-Stack Planning Notes
 
 Reusable Fullstack Architect notes for Application History planning, UI scope control, API boundaries, database-change handling, and verification are captured in [plans/fullstack-architect-reusable-notes-2026-05-20.md](plans/fullstack-architect-reusable-notes-2026-05-20.md).
+
+The same notes now include the Select Shift Form candidate availability workflow: confirm UI intent first, produce the plan before implementation, define the front/back DTO contract first, and never apply DB schema/data changes directly. If a schema change is needed, agents must give the user complete SQL to execute.
 
 ### KPI
 
@@ -457,6 +469,12 @@ Run targeted shift status / paid sick leave / CORS tests:
 ```bash
 mvn test -Dtest=ShiftStatusTest,ShiftArrangementServiceTest,WorkLoadCalculatorTest
 mvn test -Dtest=SecurityConfigurationTest,ShiftArrangementControllerCorsTest
+```
+
+Run targeted select shift candidate endpoint tests:
+
+```bash
+mvn test -Dtest=ShiftArrangementServiceTest,ShiftArrangementControllerCorsTest
 ```
 
 ## Notes for Maintainers
