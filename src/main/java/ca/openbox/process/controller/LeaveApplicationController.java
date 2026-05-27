@@ -1,18 +1,15 @@
 package ca.openbox.process.controller;
 
-import ca.openbox.infrastructure.email.service.WebhookEmailService;
-import ca.openbox.process.dto.LeaveApplicationDTO;
+import ca.openbox.process.dto.LeaveDateAvailabilityDTO;
 import ca.openbox.process.dto.PageResponseDTO;
 import ca.openbox.process.dto.PutLeaveApplicationDTO;
 import ca.openbox.process.entities.LeaveApplication;
-import ca.openbox.process.service.EmailService;
 import ca.openbox.process.service.LeaveApplicationService;
 import ca.openbox.process.service.components.ApplicationStatusChangeMessageQueue;
-import ca.openbox.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -77,6 +74,14 @@ public class LeaveApplicationController {
                                                                    @RequestParam(value = "size",required = false, defaultValue = "20") int size,
                                                                    @RequestParam(value = "sort",required = false, defaultValue = "submitTime,desc") String sort){
         return leaveApplicationService.getHistory(employeeUsername, page, size, sort, operatorUsername);
+    }
+
+    @CrossOrigin(origins ="http://localhost:8081",methods = {RequestMethod.GET})
+    @GetMapping("/application/leave-date-availability")
+    public LeaveDateAvailabilityDTO getLeaveDateAvailability(@RequestParam(value = "applicant") String applicant,
+                                                             @RequestParam(value = "from") LocalDate from,
+                                                             @RequestParam(value = "to") LocalDate to){
+        return leaveApplicationService.getLeaveDateAvailability(applicant, from, to);
     }
 
     @CrossOrigin(origins = "http://localhost:8081")

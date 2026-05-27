@@ -151,6 +151,8 @@ Employee probation checks and email dispatch workflows are documented in the rep
 
 Backend API changes that touch permissions, frontend contracts, filters, pagination, or database implications should follow the repo-local Codex skill [.codex/skills/opb-backend-api-boundary-workflow/SKILL.md](.codex/skills/opb-backend-api-boundary-workflow/SKILL.md).
 
+Leave application DatePicker backend support is documented in [docs/leave-datepicker-backend.md](docs/leave-datepicker-backend.md), and the cross-stack MAN-19 architecture summary is documented in [docs/leave-datepicker-cross-stack-architecture.md](docs/leave-datepicker-cross-stack-architecture.md). Use the repo-local skills [.codex/skills/opb-leave-datepicker-backend-workflow/SKILL.md](.codex/skills/opb-leave-datepicker-backend-workflow/SKILL.md) and [.codex/skills/opb-leave-datepicker-cross-stack-architecture/SKILL.md](.codex/skills/opb-leave-datepicker-cross-stack-architecture/SKILL.md) before future leave DatePicker planning, review, or documentation.
+
 Main routes:
 
 - `POST /api/user/login`
@@ -209,6 +211,18 @@ Select shift form candidate state is documented in [docs/shift-candidates-endpoi
 - `alreadyScheduled` means the employee already has a shift on the selected `America/Vancouver` business date; frontend selection and submit flows should treat this as disabled.
 - If both flags are true, return both facts and let the frontend apply display priority: `Already scheduled > Selected > Preferred > Normal available`.
 - Do not operate on the database directly for this workflow. If future changes need a table, field, constraint, or data migration, first provide complete SQL in the issue for the user to execute.
+
+Copy shifts statutory holiday handling is documented in [plans/copy-shifts-statutory-holiday-backend-plan-2026-05-26.md](plans/copy-shifts-statutory-holiday-backend-plan-2026-05-26.md). Key rules:
+
+- Backend validation is authoritative for `POST /api/shift/preset`; frontend warnings and disabled UI states are useful UX, but they must not be the only protection against illegal holiday inserts.
+- All copied-shift holiday checks use the target shift's `America/Vancouver` business date. Convert instants to Vancouver local dates before comparing with `opb_statutory_holiday.statutoryDate`.
+- Keep the copy request shape compatible. Do not require new request fields for this workflow unless a future product change explicitly needs them.
+- Keep the response backward compatible by preserving `created`, `skipped`, and `overwritten`; add optional structured fields such as `skippedDetails` for richer partial-success reporting.
+- Filter generated copy candidates before `shiftArrangementRepository.saveAll(...)`. Holiday candidates should be skipped and reported, not inserted and not left for the database to reject.
+- If every generated candidate is skipped, avoid calling `saveAll` with holiday rows; returning `created = 0` plus `skippedDetails` is the expected behavior.
+- `STATUTORY_HOLIDAY` skipped details should include enough context for the frontend to explain the partial success, such as `username`, `groupName`, `sourceDate`, `targetDate`, `reason`, and a clear message.
+- Preserve existing hard-fail behavior for unrelated guards such as invalid schedule range or target-week duplicate schedules.
+- DB rule: agents must not directly change schema, constraints, or production data. If a future copy-shifts fix requires a table, field, constraint, migration, or data repair, first post the complete SQL in the issue for the user to review and execute. The 2026-05-26 statutory holiday copy fix required no DB change.
 
 Main routes:
 
@@ -303,9 +317,20 @@ Admin History employee filtering is documented in the repo-local Codex skill [.c
 - Current access is Manager-only through `ApplicationHistoryAccessPolicy`; the policy boundary is reserved for future visibility scopes such as Team Leader team-member access.
 - No database table, field, constraint, or data migration is required for this feature.
 
+Leave DatePicker backend support is documented in [docs/leave-datepicker-backend.md](docs/leave-datepicker-backend.md) and the repo-local Codex skill [.codex/skills/opb-leave-datepicker-backend-workflow/SKILL.md](.codex/skills/opb-leave-datepicker-backend-workflow/SKILL.md). Current contract:
+
+- `GET /api/process/application/leave-date-availability?applicant=<username>&from=<YYYY-MM-DD>&to=<YYYY-MM-DD>` returns per-date shift availability for one applicant.
+- Request and response availability dates are Vancouver business dates formatted as `YYYY-MM-DD`; the response includes `businessZone: "America/Vancouver"`.
+- Each response date contains `date`, `scheduled`, and `shiftIds`.
+- Leave submission remains `PUT /api/process/application/leave-application` with existing `start` and `end` zoned datetime fields.
+- Backend submit validation is authoritative: any selected Vancouver business date before today is rejected, and `SICK` leave requires an existing applicant shift on every selected Vancouver business date.
+- Time input remains the existing frontend manual `HHmm-HHmm` range. No backend TimePicker field, split time field, DTO change, entity change, or migration is part of this DatePicker work.
+- No database table, field, constraint, or data migration is required for this feature.
+
 Main routes:
 
 - `PUT /api/process/application/leave-application`
+- `GET /api/process/application/leave-date-availability?applicant=...&from=YYYY-MM-DD&to=YYYY-MM-DD`
 - `POST /api/process/application/{applicationID}/permit`
 - `POST /api/process/application/{applicationID}/reject`
 - `DELETE /api/process/application/{applicationID}`
@@ -476,6 +501,22 @@ Run targeted select shift candidate endpoint tests:
 ```bash
 mvn test -Dtest=ShiftArrangementServiceTest,ShiftArrangementControllerCorsTest
 ```
+
+Run targeted copy-shifts statutory holiday tests:
+
+```bash
+mvn test -Dtest=WeekScheduleServiceTest
+mvn package
+```
+
+Run targeted leave DatePicker backend tests:
+
+```bash
+mvn test -Dtest=LeaveApplicationServiceDateAvailabilityTest,LeaveApplicationControllerAvailabilityTest
+mvn clean package
+```
+
+The fixed dates used in these tests are fixtures for deterministic assertions; runtime leave-date validation uses the current `America/Vancouver` business date.
 
 ## Notes for Maintainers
 
