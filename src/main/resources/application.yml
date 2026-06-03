@@ -8,6 +8,10 @@ spring:
       adjust-dates-to-context-time-zone: false
   jpa:
     show-sql: true
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 200MB
 secret:
   key: {{ encryptKey }}
   iv: {{ encryptIV }}
@@ -15,6 +19,8 @@ secret:
 server:
   servlet:
     context-path: /api
+uploads:
+  sick-proof-dir: {{sickProofDir}}
 mail:
   clientID: ENC(h2pUhif92L45VwWU81nKzx3tKkJiVifw3Ai64X3JMI0VgsW5U0c7lZ4oTuBit7X81+E0MV/9o/2LKtuYwMg171zV5u/1smdiZEMwzOJpmW4=)
   clientSC: ENC(1qlrBn68L+JR3Nu3kzAg9JPJO8Gkw8SWWd/Rfg2mj7zsNHgW8OvqkQnZZC7DMDkDIAa6fQf2r2EyKldqqfZUMrxJwX8ywDtWe9yUgy17n1I=)

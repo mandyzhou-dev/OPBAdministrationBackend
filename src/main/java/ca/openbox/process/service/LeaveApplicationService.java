@@ -1,11 +1,16 @@
 package ca.openbox.process.service;
 
 import ca.openbox.process.dataobject.LeaveApplicationDO;
+import ca.openbox.process.dataobject.LeaveApplicationProofDO;
 import ca.openbox.process.dto.LeaveDateAvailabilityDTO;
 import ca.openbox.process.dto.LeaveDateAvailabilityDateDTO;
 import ca.openbox.process.dto.PageResponseDTO;
 import ca.openbox.process.entities.LeaveApplication;
+import ca.openbox.process.entities.LeaveApplicationDeleteRules;
+import ca.openbox.process.repository.LeaveApplicationProofRepository;
 import ca.openbox.process.repository.LeaveApplicationRepository;
+import ca.openbox.process.service.components.ApplicationStatusChangeMessageQueue;
+import ca.openbox.process.service.components.LeaveApplicationEmailEvent;
 import ca.openbox.shift.dataobject.ShiftArrangementDO;
 import ca.openbox.shift.repository.ShiftArrangementRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +20,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
@@ -22,16 +29,19 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
 public class LeaveApplicationService {
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Vancouver");
-    private static final String PENDING_STATUS = "pending";
+    private static final String PENDING_STATUS = LeaveApplicationDeleteRules.PENDING_STATUS;
     private static final String SICK_LEAVE_TYPE = "SICK";
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
@@ -41,15 +51,23 @@ public class LeaveApplicationService {
     @Autowired
     LeaveApplicationRepository leaveApplicationRepository;
     @Autowired
+    LeaveApplicationProofRepository leaveApplicationProofRepository;
+    @Autowired
+    SickLeaveProofStorageService sickLeaveProofStorageService;
+    @Autowired
     ApplicationHistoryAccessPolicy applicationHistoryAccessPolicy;
     @Autowired
     ShiftArrangementRepository shiftArrangementRepository;
     Clock clock = Clock.system(BUSINESS_ZONE);
 
+    @Transactional
     public LeaveApplication addLeaveApplication(LeaveApplication leaveApplication){
         validateLeaveApplicationDates(leaveApplication);
         LeaveApplicationDO leaveApplicationDO = leaveApplicationRepository.save(leaveApplication.toDO());
-        return LeaveApplication.fromDO(leaveApplicationDO);
+        LeaveApplicationProofDO proofDO = createRequiredProofRowIfSick(leaveApplicationDO);
+        LeaveApplication savedApplication = LeaveApplication.fromDO(leaveApplicationDO, proofDO);
+        ApplicationStatusChangeMessageQueue.put(LeaveApplicationEmailEvent.leaveSubmitted(savedApplication));
+        return savedApplication;
     }
 
     public LeaveDateAvailabilityDTO getLeaveDateAvailability(String applicant, LocalDate from, LocalDate to) {
@@ -88,33 +106,30 @@ public class LeaveApplicationService {
         leaveApplicationRepository.save(leaveApplicationDO);
     }
     public void deleteApplication(Integer applicationID){
+        LeaveApplicationDO leaveApplicationDO = leaveApplicationRepository.getLeaveApplicationDOById(applicationID);
+        if (leaveApplicationDO == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found");
+        }
+        if (!canDeleteApplicationStatus(leaveApplicationDO.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Application status does not support deletion");
+        }
         leaveApplicationRepository.deleteById(applicationID);
     }
+
+    public boolean canDeleteApplicationStatus(String status) {
+        return LeaveApplicationDeleteRules.canDeleteStatus(status);
+    }
     public List<LeaveApplication> getApplicationsByHandler(String handler){
-        List<LeaveApplication> leaveApplicationList = new ArrayList<>();
-       // leaveApplicationRepository.getLeaveApplication
         List<LeaveApplicationDO> leaveApplicationDOList = leaveApplicationRepository.getLeaveApplicationDOByCurrentHandlerContainingOrderBySubmitTimeDesc(handler);
-        for(int i = 0; i<leaveApplicationDOList.size();++i){
-            leaveApplicationList.add(LeaveApplication.fromDO(leaveApplicationDOList.get(i)));
-        }
-        return leaveApplicationList;
+        return enrichApplications(leaveApplicationDOList);
     }
     public List<LeaveApplication> getApplicationsByApplicant(String applicant){
-        List<LeaveApplication> leaveApplicationList = new ArrayList<>();
-        // leaveApplicationRepository.getLeaveApplication
         List<LeaveApplicationDO> leaveApplicationDOList = leaveApplicationRepository.getLeaveApplicationDOByApplicantOrderBySubmitTimeDesc(applicant);
-        for(int i = 0; i<leaveApplicationDOList.size();++i){
-            leaveApplicationList.add(LeaveApplication.fromDO(leaveApplicationDOList.get(i)));
-        }
-        return leaveApplicationList;
+        return enrichApplications(leaveApplicationDOList);
     }
     public List<LeaveApplication> getAllApplications(){
-        List<LeaveApplication> leaveApplicationList = new ArrayList<>();
         List<LeaveApplicationDO> leaveApplicationDOList = leaveApplicationRepository.getLeaveApplicationDOByStatusIsNotContainingOrderBySubmitTimeDesc(PENDING_STATUS);
-        for(int i = 0; i<leaveApplicationDOList.size();++i){
-            leaveApplicationList.add(LeaveApplication.fromDO(leaveApplicationDOList.get(i)));
-        }
-        return leaveApplicationList;
+        return enrichApplications(leaveApplicationDOList);
     }
     public PageResponseDTO<LeaveApplication> getHistory(String employeeUsername, int page, int size, String sort, String operatorUsername){
         applicationHistoryAccessPolicy.resolveVisibility(operatorUsername);
@@ -128,9 +143,7 @@ public class LeaveApplicationService {
             applicationPage = leaveApplicationRepository.getLeaveApplicationDOByStatusIsNotContainingAndApplicant(PENDING_STATUS, normalizedEmployee, pageable);
         }
 
-        List<LeaveApplication> applications = applicationPage.getContent().stream()
-                .map(LeaveApplication::fromDO)
-                .toList();
+        List<LeaveApplication> applications = enrichApplications(applicationPage.getContent());
         return new PageResponseDTO<>(
                 applications,
                 applicationPage.getNumber(),
@@ -144,6 +157,100 @@ public class LeaveApplicationService {
         LeaveApplicationDO leaveApplicationDO = leaveApplicationRepository.getLeaveApplicationDOById(applicationID);
         leaveApplicationDO.setNote(note);
         leaveApplicationRepository.save(leaveApplicationDO);
+    }
+
+    @Transactional
+    public LeaveApplication uploadSickProof(Integer applicationID, String applicant, MultipartFile proof) {
+        LeaveApplicationDO applicationDO = leaveApplicationRepository.getLeaveApplicationDOById(applicationID);
+        if (applicationDO == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found");
+        }
+        if (!isSickLeave(applicationDO.getLeaveType())) {
+            throw badRequest("Sick proof can only be uploaded for sick leave applications");
+        }
+        validateApplicantMatches(applicationDO, applicant);
+
+        LeaveApplicationProofDO proofDO = getOrCreateRequiredProofRow(applicationDO);
+        StoredSickLeaveProof storedProof = sickLeaveProofStorageService.store(applicationID, proof);
+        proofDO.setStatus("SUBMITTED");
+        proofDO.setUploadedAt(ZonedDateTime.now(clock.withZone(BUSINESS_ZONE)));
+        proofDO.setOriginalFilename(storedProof.getOriginalFilename());
+        proofDO.setStoredFilename(storedProof.getStoredFilename());
+        proofDO.setContentType(storedProof.getContentType());
+        proofDO.setFileSizeBytes(storedProof.getFileSizeBytes());
+        LeaveApplicationProofDO savedProof = leaveApplicationProofRepository.save(proofDO);
+
+        LeaveApplication updatedApplication = LeaveApplication.fromDO(applicationDO, savedProof);
+        ApplicationStatusChangeMessageQueue.put(LeaveApplicationEmailEvent.sickProofUploaded(updatedApplication, storedProof.getStoredPath()));
+        return updatedApplication;
+    }
+
+    private LeaveApplicationProofDO createRequiredProofRowIfSick(LeaveApplicationDO leaveApplicationDO) {
+        if (!isSickLeave(leaveApplicationDO.getLeaveType()) || leaveApplicationProofRepository == null) {
+            return null;
+        }
+        LeaveApplicationProofDO proofDO = new LeaveApplicationProofDO();
+        proofDO.setApplicationId(leaveApplicationDO.getId());
+        proofDO.setProofType("SICK_LEAVE_PROOF");
+        proofDO.setStatus("REQUIRED");
+        return leaveApplicationProofRepository.save(proofDO);
+    }
+
+    private LeaveApplicationProofDO getOrCreateRequiredProofRow(LeaveApplicationDO applicationDO) {
+        Optional<LeaveApplicationProofDO> existingProof = leaveApplicationProofRepository.findById(applicationDO.getId());
+        if (existingProof.isPresent()) {
+            return existingProof.get();
+        }
+        LeaveApplicationProofDO proofDO = new LeaveApplicationProofDO();
+        proofDO.setApplicationId(applicationDO.getId());
+        proofDO.setProofType("SICK_LEAVE_PROOF");
+        proofDO.setStatus("REQUIRED");
+        return leaveApplicationProofRepository.save(proofDO);
+    }
+
+    private List<LeaveApplication> enrichApplications(List<LeaveApplicationDO> applicationDOList) {
+        if (applicationDOList == null || applicationDOList.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<Integer, LeaveApplicationProofDO> proofsByApplicationId = getProofsByApplicationId(applicationDOList);
+        return applicationDOList.stream()
+                .map(applicationDO -> LeaveApplication.fromDO(applicationDO, proofsByApplicationId.get(applicationDO.getId())))
+                .toList();
+    }
+
+    private Map<Integer, LeaveApplicationProofDO> getProofsByApplicationId(List<LeaveApplicationDO> applicationDOList) {
+        if (leaveApplicationProofRepository == null) {
+            return Collections.emptyMap();
+        }
+        List<Integer> applicationIds = applicationDOList.stream()
+                .map(LeaveApplicationDO::getId)
+                .filter(id -> id != null)
+                .toList();
+        if (applicationIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Integer, LeaveApplicationProofDO> proofsByApplicationId = new HashMap<>();
+        leaveApplicationProofRepository.findByApplicationIdIn(applicationIds)
+                .forEach(proofDO -> proofsByApplicationId.put(proofDO.getApplicationId(), proofDO));
+        return proofsByApplicationId;
+    }
+
+    private void validateApplicantMatches(LeaveApplicationDO applicationDO, String applicant) {
+        String normalizedRequestApplicant = normalizeApplicantForOwnershipCheck(applicant);
+        String normalizedApplicationApplicant = normalizeApplicantForOwnershipCheck(applicationDO.getApplicant());
+        if (normalizedRequestApplicant == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Applicant is required");
+        }
+        if (!normalizedRequestApplicant.equals(normalizedApplicationApplicant)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Applicant does not match leave application");
+        }
+    }
+
+    private String normalizeApplicantForOwnershipCheck(String applicant) {
+        if (applicant == null || applicant.isBlank()) {
+            return null;
+        }
+        return applicant.trim();
     }
 
     private int normalizePage(int page) {
@@ -191,7 +298,7 @@ public class LeaveApplicationService {
         validateDateRange(startDate, endDate);
         assertNotPast(startDate, endDate);
 
-        if (SICK_LEAVE_TYPE.equalsIgnoreCase(leaveApplication.getLeaveType())) {
+        if (isSickLeave(leaveApplication.getLeaveType())) {
             assertScheduledForSickLeave(leaveApplication.getApplicant(), startDate, endDate);
         }
     }
@@ -273,5 +380,9 @@ public class LeaveApplicationService {
 
     private ResponseStatusException badRequest(String reason) {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST, reason);
+    }
+
+    private boolean isSickLeave(String leaveType) {
+        return leaveType != null && SICK_LEAVE_TYPE.equalsIgnoreCase(leaveType.trim());
     }
 }

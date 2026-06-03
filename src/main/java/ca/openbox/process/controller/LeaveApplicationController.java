@@ -5,9 +5,9 @@ import ca.openbox.process.dto.PageResponseDTO;
 import ca.openbox.process.dto.PutLeaveApplicationDTO;
 import ca.openbox.process.entities.LeaveApplication;
 import ca.openbox.process.service.LeaveApplicationService;
-import ca.openbox.process.service.components.ApplicationStatusChangeMessageQueue;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
@@ -31,7 +31,6 @@ public class LeaveApplicationController {
         leaveApplication.setCurrentHandler("raynold,agnes");
         leaveApplication.setReason(putLeaveApplicationDTO.getReason());
         LeaveApplication savedApplication = leaveApplicationService.addLeaveApplication(leaveApplication);
-        ApplicationStatusChangeMessageQueue.put(savedApplication);
         return savedApplication;
     }
 
@@ -88,5 +87,13 @@ public class LeaveApplicationController {
     @PutMapping("/application/{applicationID}/note")
     public void putNote(@PathVariable Integer applicationID, @RequestBody String note){
         leaveApplicationService.addNoteToApplication(applicationID,note);
+    }
+
+    @CrossOrigin(origins = "http://localhost:8081", methods = {RequestMethod.POST})
+    @PostMapping("/application/{applicationID}/sick-proof")
+    public LeaveApplication uploadSickProof(@PathVariable Integer applicationID,
+                                            @RequestParam("proof") MultipartFile proof,
+                                            @RequestParam("applicant") String applicant) {
+        return leaveApplicationService.uploadSickProof(applicationID, applicant, proof);
     }
 }

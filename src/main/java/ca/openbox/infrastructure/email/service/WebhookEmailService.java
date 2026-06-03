@@ -1,6 +1,7 @@
 package ca.openbox.infrastructure.email.service;
 
 import ca.openbox.infrastructure.email.dto.WebhookEmailDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +12,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 @Service
 public class WebhookEmailService {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     @Value("${mail.url}")
     private String url;
     @Value("${mail.webtoken}")
@@ -18,14 +20,7 @@ public class WebhookEmailService {
     public void sendEmail(String recipient, String subject, String content) throws IOException, InterruptedException {
         String endpoint=String.format(url);
 
-        String emailJson = String.format("""
-            {
-                "title":"%s",
-                "content":"%s",
-                "recipient":"%s",
-                "token":"%s"
-            }
-        """, subject, content, recipient,webtoken);
+        String emailJson = buildEmailJson(recipient, subject, content, webtoken);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .header("Authorization", "Bearer " + webtoken)
@@ -40,5 +35,14 @@ public class WebhookEmailService {
         System.out.println("Response body: " + response.body());
 
 
+    }
+
+    static String buildEmailJson(String recipient, String subject, String content, String token) throws IOException {
+        WebhookEmailDTO emailDTO = new WebhookEmailDTO();
+        emailDTO.setRecipient(recipient);
+        emailDTO.setTitle(subject);
+        emailDTO.setContent(content);
+        emailDTO.setToken(token);
+        return OBJECT_MAPPER.writeValueAsString(emailDTO);
     }
 }

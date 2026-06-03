@@ -327,6 +327,22 @@ Leave DatePicker backend support is documented in [docs/leave-datepicker-backend
 - Time input remains the existing frontend manual `HHmm-HHmm` range. No backend TimePicker field, split time field, DTO change, entity change, or migration is part of this DatePicker work.
 - No database table, field, constraint, or data migration is required for this feature.
 
+Sick leave proof upload backend notes:
+
+- Upload endpoint: `POST /api/process/application/{applicationID}/sick-proof` with multipart field `proof` and request param `applicant`.
+- Files are stored through `SickLeaveProofStorageService` under the configured `uploads.sick-proof-dir`; do not hard-code a local path in controller or service code.
+- Store proof state and latest upload metadata in the proof persistence model (`LeaveApplicationProofDO` / `opb_leave_application_proof`): `status`, `uploadedAt`, `originalFilename`, `storedFilename`, `contentType`, and `fileSizeBytes`.
+- Return the updated `LeaveApplication` from the upload endpoint so callers can immediately refresh `sickProofRequired`, `sickProofSubmitted`, `sickProofUploadedAt`, and `sickProofOriginalFilename`.
+- Keep upload semantics ordered: validate application/applicant, write the file, save proof metadata, then enqueue `SICK_PROOF_UPLOADED`. Email failures must not roll back a successful proof upload.
+- Email notifications should reuse `ApplicationStatusChangeMessageQueue`, `LeaveApplicationEmailEvent`, `EmailNotificationConsumer`, and `WebhookEmailService`; avoid adding another email stack for this workflow.
+- `LEAVE_SUBMITTED` sends handler review email and, for sick leave, an employee proof reminder email. `SICK_PROOF_UPLOADED` uses a dedicated HR recipient source rather than `currentHandler`; current HR usernames are `raynold` and `agnes`.
+- Username lookup and authorization comparison are different concerns: lookup must try the raw username first, then trim fallback; authorization comparisons may normalize both sides for leading/trailing whitespace.
+- Any multi-recipient email path must keep the existing 20-second delay between send attempts to avoid webhook/mail limits. This includes handler review emails and sick-proof HR upload notifications.
+- Format leave times for email in `America/Vancouver` before rendering with `MMM d, yyyy h:mm a` and `Locale.US`; do not show raw UTC instants in email bodies.
+- Startup wiring matters for background consumers. If adding test-only constructors, mark the Spring runtime constructor explicitly with `@Autowired` and keep a wiring regression test so the app does not fail with `No default constructor found`.
+- Useful focused tests before handing off: `EmailNotificationConsumerHandlerLookupTest`, `EmailNotificationConsumerTimezoneTest`, `EmailNotificationConsumerSpringWiringTest`, `LeaveApplicationServiceSickProofTest`, and storage/config tests. Also run `mvn test`, `mvn package -DskipTests`, and a short startup smoke test when constructor wiring or application context behavior changed.
+- Do not modify production DB data directly. If a future proof workflow needs schema or data changes, provide SQL in the issue for the user to execute.
+
 Main routes:
 
 - `PUT /api/process/application/leave-application`
@@ -337,6 +353,7 @@ Main routes:
 - `GET /api/process/application`
 - `GET /api/process/application/history?operatorUsername=...&employeeUsername=...&page=0&size=20&sort=submitTime,desc`
 - `PUT /api/process/application/{applicationID}/note`
+- `POST /api/process/application/{applicationID}/sick-proof`
 
 ### Resignations and Employment
 
