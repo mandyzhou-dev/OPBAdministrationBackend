@@ -11,9 +11,13 @@ import ca.openbox.shift.dataobject.ShiftArrangementDO;
 import ca.openbox.shift.repository.ShiftArrangementRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +51,7 @@ class LeaveApplicationServiceSickProofTest {
         leaveApplicationService.leaveApplicationProofRepository = proofRepository;
         leaveApplicationService.sickLeaveProofStorageService = storageService;
         leaveApplicationService.shiftArrangementRepository = shiftArrangementRepository;
+        leaveApplicationService.clock = Clock.fixed(Instant.parse("2026-06-04T18:00:00Z"), ZoneId.of("America/Vancouver"));
     }
 
     @Test
@@ -72,7 +77,11 @@ class LeaveApplicationServiceSickProofTest {
 
         assertTrue(result.isSickProofRequired());
         assertEquals(false, result.isSickProofSubmitted());
-        verify(proofRepository).save(any(LeaveApplicationProofDO.class));
+        ArgumentCaptor<LeaveApplicationProofDO> proofCaptor = ArgumentCaptor.forClass(LeaveApplicationProofDO.class);
+        verify(leaveApplicationRepository).save(any(LeaveApplicationDO.class));
+        verify(proofRepository).save(proofCaptor.capture());
+        assertEquals(Instant.parse("2026-06-04T18:00:00Z"), proofCaptor.getValue().getCreatedAt().toInstant());
+        assertEquals(Instant.parse("2026-06-04T18:00:00Z"), proofCaptor.getValue().getUpdatedAt().toInstant());
         assertEquals("LEAVE_SUBMITTED", ApplicationStatusChangeMessageQueue.take().getType().name());
     }
 
@@ -104,9 +113,34 @@ class LeaveApplicationServiceSickProofTest {
         assertTrue(result.isSickProofSubmitted());
         assertNotNull(result.getSickProofUploadedAt());
         assertEquals("doctor-note.pdf", result.getSickProofOriginalFilename());
+        ArgumentCaptor<LeaveApplicationProofDO> proofCaptor = ArgumentCaptor.forClass(LeaveApplicationProofDO.class);
+        verify(proofRepository).save(proofCaptor.capture());
+        assertEquals(Instant.parse("2026-06-04T18:00:00Z"), proofCaptor.getValue().getCreatedAt().toInstant());
+        assertEquals(Instant.parse("2026-06-04T18:00:00Z"), proofCaptor.getValue().getUploadedAt().toInstant());
+        assertEquals(Instant.parse("2026-06-04T18:00:00Z"), proofCaptor.getValue().getUpdatedAt().toInstant());
         LeaveApplicationEmailEvent emailEvent = ApplicationStatusChangeMessageQueue.take();
         assertEquals("SICK_PROOF_UPLOADED", emailEvent.getType().name());
         assertEquals("/configured/sick-proof-dir/77/20260601120000000_test.pdf", emailEvent.getSickProofStoredPath());
+    }
+
+    @Test
+    void nonSickLeaveApplicationDoesNotCreateProofRow() throws Exception {
+        LeaveApplication application = new LeaveApplication();
+        application.setApplicant("alice");
+        application.setLeaveType("personalleave");
+        ZonedDateTime start = ZonedDateTime.parse("2026-06-05T09:00:00-07:00[America/Vancouver]");
+        application.setStart(start);
+        application.setEnd(start.withHour(17));
+
+        LeaveApplicationDO saved = application.toDO();
+        saved.setId(124);
+        when(leaveApplicationRepository.save(any(LeaveApplicationDO.class))).thenReturn(saved);
+
+        LeaveApplication result = leaveApplicationService.addLeaveApplication(application);
+
+        assertEquals("personalleave", result.getLeaveType());
+        verify(proofRepository, never()).save(any(LeaveApplicationProofDO.class));
+        assertEquals("LEAVE_SUBMITTED", ApplicationStatusChangeMessageQueue.take().getType().name());
     }
 
     @Test
@@ -140,6 +174,32 @@ class LeaveApplicationServiceSickProofTest {
 
         assertEquals("403 FORBIDDEN \"Applicant does not match leave application\"", exception.getMessage());
         verify(storageService, never()).store(any(), any());
+    }
+
+    @Test
+    void pendingApplicationsByHandlerIncludeProofMetadata() {
+        LeaveApplicationDO missingProofApplication = sickApplication();
+        missingProofApplication.setId(77);
+        LeaveApplicationDO submittedProofApplication = sickApplication();
+        submittedProofApplication.setId(78);
+        LeaveApplicationProofDO submittedProof = submittedProof(78);
+
+        when(leaveApplicationRepository.getLeaveApplicationDOByCurrentHandlerContainingOrderBySubmitTimeDesc("raynold"))
+                .thenReturn(List.of(missingProofApplication, submittedProofApplication));
+        when(proofRepository.findByApplicationIdIn(List.of(77, 78)))
+                .thenReturn(List.of(submittedProof));
+
+        List<LeaveApplication> applications = leaveApplicationService.getApplicationsByHandler("raynold");
+
+        assertEquals(2, applications.size());
+        assertTrue(applications.get(0).isSickProofRequired());
+        assertEquals(false, applications.get(0).isSickProofSubmitted());
+        assertEquals(null, applications.get(0).getSickProofUploadedAt());
+        assertEquals(null, applications.get(0).getSickProofOriginalFilename());
+        assertTrue(applications.get(1).isSickProofRequired());
+        assertTrue(applications.get(1).isSickProofSubmitted());
+        assertEquals(submittedProof.getUploadedAt(), applications.get(1).getSickProofUploadedAt());
+        assertEquals("doctor-note.pdf", applications.get(1).getSickProofOriginalFilename());
     }
 
     private LeaveApplication uploadProofForApplicants(String dbApplicant, String requestApplicant) {
@@ -178,5 +238,14 @@ class LeaveApplicationServiceSickProofTest {
         application.setSubmitTime(ZonedDateTime.now());
         application.setCurrentHandler("raynold,agnes");
         return application;
+    }
+
+    private LeaveApplicationProofDO submittedProof(Integer applicationId) {
+        LeaveApplicationProofDO proof = new LeaveApplicationProofDO();
+        proof.setApplicationId(applicationId);
+        proof.setStatus("SUBMITTED");
+        proof.setUploadedAt(ZonedDateTime.parse("2026-06-03T12:00:00-07:00[America/Vancouver]"));
+        proof.setOriginalFilename("doctor-note.pdf");
+        return proof;
     }
 }

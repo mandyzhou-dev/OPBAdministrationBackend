@@ -71,11 +71,11 @@ public class LeaveApplicationService {
     }
 
     public LeaveDateAvailabilityDTO getLeaveDateAvailability(String applicant, LocalDate from, LocalDate to) {
-        String normalizedApplicant = normalizeRequiredApplicant(applicant);
+        String rawApplicant = requireApplicant(applicant);
         validateDateRange(from, to);
         validateAvailabilityRangeSize(from, to);
 
-        Map<LocalDate, List<Integer>> shiftIdsByDate = getScheduledShiftIdsByBusinessDate(normalizedApplicant, from, to);
+        Map<LocalDate, List<Integer>> shiftIdsByDate = getScheduledShiftIdsByBusinessDate(rawApplicant, from, to);
         List<LeaveDateAvailabilityDateDTO> dates = getBusinessDatesInclusive(from, to).stream()
                 .map(date -> {
                     List<Integer> shiftIds = shiftIdsByDate.getOrDefault(date, List.of());
@@ -84,7 +84,7 @@ public class LeaveApplicationService {
                 .toList();
 
         return new LeaveDateAvailabilityDTO(
-                normalizedApplicant,
+                rawApplicant,
                 from.toString(),
                 to.toString(),
                 BUSINESS_ZONE.getId(),
@@ -172,12 +172,15 @@ public class LeaveApplicationService {
 
         LeaveApplicationProofDO proofDO = getOrCreateRequiredProofRow(applicationDO);
         StoredSickLeaveProof storedProof = sickLeaveProofStorageService.store(applicationID, proof);
+        ZonedDateTime now = nowInBusinessZone();
+        populateProofCreatedAtIfMissing(proofDO, now);
         proofDO.setStatus("SUBMITTED");
-        proofDO.setUploadedAt(ZonedDateTime.now(clock.withZone(BUSINESS_ZONE)));
+        proofDO.setUploadedAt(now);
         proofDO.setOriginalFilename(storedProof.getOriginalFilename());
         proofDO.setStoredFilename(storedProof.getStoredFilename());
         proofDO.setContentType(storedProof.getContentType());
         proofDO.setFileSizeBytes(storedProof.getFileSizeBytes());
+        proofDO.setUpdatedAt(now);
         LeaveApplicationProofDO savedProof = leaveApplicationProofRepository.save(proofDO);
 
         LeaveApplication updatedApplication = LeaveApplication.fromDO(applicationDO, savedProof);
@@ -193,6 +196,7 @@ public class LeaveApplicationService {
         proofDO.setApplicationId(leaveApplicationDO.getId());
         proofDO.setProofType("SICK_LEAVE_PROOF");
         proofDO.setStatus("REQUIRED");
+        populateProofAuditTimestamps(proofDO);
         return leaveApplicationProofRepository.save(proofDO);
     }
 
@@ -205,7 +209,20 @@ public class LeaveApplicationService {
         proofDO.setApplicationId(applicationDO.getId());
         proofDO.setProofType("SICK_LEAVE_PROOF");
         proofDO.setStatus("REQUIRED");
+        populateProofAuditTimestamps(proofDO);
         return leaveApplicationProofRepository.save(proofDO);
+    }
+
+    private void populateProofAuditTimestamps(LeaveApplicationProofDO proofDO) {
+        ZonedDateTime now = nowInBusinessZone();
+        populateProofCreatedAtIfMissing(proofDO, now);
+        proofDO.setUpdatedAt(now);
+    }
+
+    private void populateProofCreatedAtIfMissing(LeaveApplicationProofDO proofDO, ZonedDateTime now) {
+        if (proofDO.getCreatedAt() == null) {
+            proofDO.setCreatedAt(now);
+        }
     }
 
     private List<LeaveApplication> enrichApplications(List<LeaveApplicationDO> applicationDOList) {
@@ -313,8 +330,8 @@ public class LeaveApplicationService {
     }
 
     private void assertScheduledForSickLeave(String applicant, LocalDate startDate, LocalDate endDate) {
-        String normalizedApplicant = normalizeRequiredApplicant(applicant);
-        Set<LocalDate> scheduledDates = getScheduledShiftIdsByBusinessDate(normalizedApplicant, startDate, endDate).keySet();
+        String rawApplicant = requireApplicant(applicant);
+        Set<LocalDate> scheduledDates = getScheduledShiftIdsByBusinessDate(rawApplicant, startDate, endDate).keySet();
         boolean missingSchedule = getBusinessDatesInclusive(startDate, endDate).stream()
                 .anyMatch(date -> !scheduledDates.contains(date));
         if (missingSchedule) {
@@ -326,6 +343,10 @@ public class LeaveApplicationService {
         return dateTime.withZoneSameInstant(BUSINESS_ZONE).toLocalDate();
     }
 
+    private ZonedDateTime nowInBusinessZone() {
+        return ZonedDateTime.now(clock.withZone(BUSINESS_ZONE));
+    }
+
     private Map<LocalDate, List<Integer>> getScheduledShiftIdsByBusinessDate(String applicant, LocalDate from, LocalDate to) {
         ZonedDateTime rangeStart = from.atStartOfDay(BUSINESS_ZONE);
         ZonedDateTime rangeEnd = to.plusDays(1).atStartOfDay(BUSINESS_ZONE).minusNanos(1);
@@ -334,6 +355,14 @@ public class LeaveApplicationService {
                 rangeStart,
                 rangeEnd
         );
+        String trimmedApplicant = applicant.trim();
+        if (shifts.isEmpty() && !trimmedApplicant.isEmpty()) {
+            shifts = shiftArrangementRepository.getShiftArrangementDOByTrimmedUsernameAndStartBetween(
+                    trimmedApplicant,
+                    rangeStart,
+                    rangeEnd
+            );
+        }
 
         Map<LocalDate, List<Integer>> shiftIdsByDate = new LinkedHashMap<>();
         shifts.stream()
@@ -356,11 +385,11 @@ public class LeaveApplicationService {
         return dates;
     }
 
-    private String normalizeRequiredApplicant(String applicant) {
+    private String requireApplicant(String applicant) {
         if (applicant == null || applicant.isBlank()) {
             throw badRequest("Applicant is required");
         }
-        return applicant.trim();
+        return applicant;
     }
 
     private void validateDateRange(LocalDate from, LocalDate to) {

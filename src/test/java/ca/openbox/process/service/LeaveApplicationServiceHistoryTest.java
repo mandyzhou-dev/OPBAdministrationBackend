@@ -1,10 +1,12 @@
 package ca.openbox.process.service;
 
 import ca.openbox.process.dataobject.LeaveApplicationDO;
+import ca.openbox.process.dataobject.LeaveApplicationProofDO;
 import ca.openbox.process.dto.PageResponseDTO;
 import ca.openbox.process.entities.HistoryVisibility;
 import ca.openbox.process.entities.HistoryVisibilityScope;
 import ca.openbox.process.entities.LeaveApplication;
+import ca.openbox.process.repository.LeaveApplicationProofRepository;
 import ca.openbox.process.repository.LeaveApplicationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,15 +27,18 @@ import static org.mockito.Mockito.when;
 class LeaveApplicationServiceHistoryTest {
 
     private LeaveApplicationRepository leaveApplicationRepository;
+    private LeaveApplicationProofRepository proofRepository;
     private ApplicationHistoryAccessPolicy accessPolicy;
     private LeaveApplicationService leaveApplicationService;
 
     @BeforeEach
     void setUp() {
         leaveApplicationRepository = mock(LeaveApplicationRepository.class);
+        proofRepository = mock(LeaveApplicationProofRepository.class);
         accessPolicy = mock(ApplicationHistoryAccessPolicy.class);
         leaveApplicationService = new LeaveApplicationService();
         leaveApplicationService.leaveApplicationRepository = leaveApplicationRepository;
+        leaveApplicationService.leaveApplicationProofRepository = proofRepository;
         leaveApplicationService.applicationHistoryAccessPolicy = accessPolicy;
         when(accessPolicy.resolveVisibility("manager"))
                 .thenReturn(new HistoryVisibility(true, HistoryVisibilityScope.ALL_EMPLOYEES, null));
@@ -93,6 +98,39 @@ class LeaveApplicationServiceHistoryTest {
         assertEquals("submitTime,desc", response.getSort());
     }
 
+    @Test
+    void historyIncludesSickProofMetadataWithoutChangingPaginationTotals() {
+        LeaveApplicationDO submittedSickLeave = application(10, "jane", "approved");
+        submittedSickLeave.setLeaveType("SICK");
+        LeaveApplicationDO missingSickLeave = application(11, "bob", "rejected");
+        missingSickLeave.setLeaveType("SICK");
+        LeaveApplicationProofDO submittedProof = submittedProof(10);
+
+        when(leaveApplicationRepository.getLeaveApplicationDOByStatusIsNotContaining(eq("pending"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(submittedSickLeave, missingSickLeave), PageRequest.of(0, 20), 42));
+        when(proofRepository.findByApplicationIdIn(List.of(10, 11)))
+                .thenReturn(List.of(submittedProof));
+
+        PageResponseDTO<LeaveApplication> response = leaveApplicationService.getHistory(null, 0, 20, "submitTime,desc", "manager");
+
+        assertEquals(2, response.getContent().size());
+        assertEquals(42, response.getTotalElements());
+        assertEquals(3, response.getTotalPages());
+        LeaveApplication submitted = response.getContent().get(0);
+        assertEquals(10, submitted.getId());
+        assertEquals(true, submitted.isSickProofRequired());
+        assertEquals(true, submitted.isSickProofSubmitted());
+        assertEquals(submittedProof.getUploadedAt(), submitted.getSickProofUploadedAt());
+        assertEquals("doctor-note.pdf", submitted.getSickProofOriginalFilename());
+
+        LeaveApplication missing = response.getContent().get(1);
+        assertEquals(11, missing.getId());
+        assertEquals(true, missing.isSickProofRequired());
+        assertEquals(false, missing.isSickProofSubmitted());
+        assertEquals(null, missing.getSickProofUploadedAt());
+        assertEquals(null, missing.getSickProofOriginalFilename());
+    }
+
     private LeaveApplicationDO application(Integer id, String applicant, String status) {
         LeaveApplicationDO application = new LeaveApplicationDO();
         application.setId(id);
@@ -100,5 +138,14 @@ class LeaveApplicationServiceHistoryTest {
         application.setStatus(status);
         application.setSubmitTime(ZonedDateTime.now());
         return application;
+    }
+
+    private LeaveApplicationProofDO submittedProof(Integer applicationId) {
+        LeaveApplicationProofDO proof = new LeaveApplicationProofDO();
+        proof.setApplicationId(applicationId);
+        proof.setStatus("SUBMITTED");
+        proof.setUploadedAt(ZonedDateTime.parse("2026-06-03T12:00:00-07:00[America/Vancouver]"));
+        proof.setOriginalFilename("doctor-note.pdf");
+        return proof;
     }
 }

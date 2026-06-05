@@ -3,10 +3,12 @@ package ca.openbox.process.service;
 import ca.openbox.process.dto.LeaveDateAvailabilityDTO;
 import ca.openbox.process.entities.LeaveApplication;
 import ca.openbox.process.repository.LeaveApplicationRepository;
+import ca.openbox.process.service.components.ApplicationStatusChangeMessageQueue;
 import ca.openbox.shift.dataobject.ShiftArrangementDO;
 import ca.openbox.shift.repository.ShiftArrangementRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -22,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -70,6 +73,75 @@ class LeaveApplicationServiceDateAvailabilityTest {
         assertEquals(List.of(123, 124), response.getDates().get(0).getShiftIds());
         assertEquals("2026-05-28", response.getDates().get(1).getDate());
         assertEquals(List.of(), response.getDates().get(1).getShiftIds());
+    }
+
+    @Test
+    void availabilityUsesRawApplicantBeforeTrimmedFallbackWhenRawApplicantHasTrailingWhitespace() {
+        when(shiftArrangementRepository.getShiftArrangementDOByUsernameAndStartBetween(
+                eq("Harsimranjit Kaur "), any(ZonedDateTime.class), any(ZonedDateTime.class)
+        )).thenReturn(List.of(shift(831, "Harsimranjit Kaur ", vancouverTime(2026, 8, 31, 9))));
+
+        LeaveDateAvailabilityDTO response = leaveApplicationService.getLeaveDateAvailability(
+                "Harsimranjit Kaur ",
+                LocalDate.parse("2026-08-31"),
+                LocalDate.parse("2026-08-31")
+        );
+
+        assertEquals("Harsimranjit Kaur ", response.getApplicant());
+        assertTrue(response.getDates().get(0).isScheduled());
+        assertEquals(List.of(831), response.getDates().get(0).getShiftIds());
+        verify(shiftArrangementRepository, never()).getShiftArrangementDOByTrimmedUsernameAndStartBetween(
+                eq("Harsimranjit Kaur"), any(ZonedDateTime.class), any(ZonedDateTime.class)
+        );
+    }
+
+    @Test
+    void availabilityFallsBackToTrimmedUsernameQueryWhenRequestApplicantIsAlreadyTrimmed() {
+        when(shiftArrangementRepository.getShiftArrangementDOByUsernameAndStartBetween(
+                eq("Harsimranjit Kaur"), any(ZonedDateTime.class), any(ZonedDateTime.class)
+        )).thenReturn(List.of());
+        when(shiftArrangementRepository.getShiftArrangementDOByTrimmedUsernameAndStartBetween(
+                eq("Harsimranjit Kaur"), any(ZonedDateTime.class), any(ZonedDateTime.class)
+        )).thenReturn(List.of(shift(831, "Harsimranjit Kaur ", vancouverTime(2026, 8, 31, 9))));
+
+        LeaveDateAvailabilityDTO response = leaveApplicationService.getLeaveDateAvailability(
+                "Harsimranjit Kaur",
+                LocalDate.parse("2026-08-31"),
+                LocalDate.parse("2026-08-31")
+        );
+
+        assertEquals("Harsimranjit Kaur", response.getApplicant());
+        assertTrue(response.getDates().get(0).isScheduled());
+        assertEquals(List.of(831), response.getDates().get(0).getShiftIds());
+
+        InOrder inOrder = inOrder(shiftArrangementRepository);
+        inOrder.verify(shiftArrangementRepository).getShiftArrangementDOByUsernameAndStartBetween(
+                eq("Harsimranjit Kaur"), any(ZonedDateTime.class), any(ZonedDateTime.class)
+        );
+        inOrder.verify(shiftArrangementRepository).getShiftArrangementDOByTrimmedUsernameAndStartBetween(
+                eq("Harsimranjit Kaur"), any(ZonedDateTime.class), any(ZonedDateTime.class)
+        );
+    }
+
+    @Test
+    void sickLeaveSubmitValidationFallsBackToTrimmedUsernameQueryForHistoricalShiftUsername() throws Exception {
+        LeaveApplication application = application("SICK", vancouverTime(2026, 8, 31, 9), vancouverTime(2026, 8, 31, 17));
+        application.setApplicant("Harsimranjit Kaur");
+        LeaveApplication saved = application;
+
+        when(shiftArrangementRepository.getShiftArrangementDOByUsernameAndStartBetween(
+                eq("Harsimranjit Kaur"), any(ZonedDateTime.class), any(ZonedDateTime.class)
+        )).thenReturn(List.of());
+        when(shiftArrangementRepository.getShiftArrangementDOByTrimmedUsernameAndStartBetween(
+                eq("Harsimranjit Kaur"), any(ZonedDateTime.class), any(ZonedDateTime.class)
+        )).thenReturn(List.of(shift(831, "Harsimranjit Kaur ", vancouverTime(2026, 8, 31, 9))));
+        when(leaveApplicationRepository.save(any())).thenReturn(saved.toDO());
+
+        LeaveApplication result = leaveApplicationService.addLeaveApplication(application);
+
+        assertEquals("Harsimranjit Kaur", result.getApplicant());
+        assertEquals("LEAVE_SUBMITTED", ApplicationStatusChangeMessageQueue.take().getType().name());
+        verify(leaveApplicationRepository).save(any());
     }
 
     @Test

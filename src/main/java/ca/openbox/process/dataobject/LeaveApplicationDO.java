@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.ZonedDateTime;
-import java.util.Date;
+
 @Data
 @Entity
 @Table(name="opb_leave_application")
