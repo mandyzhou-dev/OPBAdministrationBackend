@@ -24,8 +24,8 @@ paths:
         Authenticates an active user with a password. The request field is named
         username for backward compatibility, but it accepts either the user's
         canonical username or the user's email address. On success, the response
-        returns user profile fields and a JWT whose subject is the canonical
-        username.
+        returns only minimal authentication and routing fields, plus a JWT whose
+        subject is the canonical username.
       operationId: loginUser
       security: []
       requestBody:
@@ -66,14 +66,9 @@ paths:
                     username: raynold
                     name: Raynold Wong
                     roles: manager
-                    birthdate: "1990-01-15"
-                    address: 123 Example Street
-                    phoneNumber: "6045550100"
-                    email: raynold@example.com
-                    JSessionID: 03BF94E92873D84D44D2B1FBA27F3B0A
-                    token: eyJhbGciOiJIUzI1NiJ9.example.signature
-                    active: 1
                     groupName: surrey
+                    jsessionID: 03BF94E92873D84D44D2B1FBA27F3B0A
+                    token: eyJhbGciOiJIUzI1NiJ9.example.signature
         "400":
           description: Request body is missing or malformed.
           content:
@@ -140,49 +135,20 @@ components:
           type: string
           description: Persisted role string.
           example: manager
-        birthdate:
+        groupName:
           type: string
-          format: date
           nullable: true
-          example: "1990-01-15"
-        JSessionID:
+          description: Low-sensitivity routing or group context used by current frontend flows.
+          example: surrey
+        jsessionID:
           type: string
-          description: Current servlet session id returned by the controller.
+          nullable: true
+          description: Current servlet session id returned by the controller for temporary frontend compatibility.
           example: 03BF94E92873D84D44D2B1FBA27F3B0A
-        legalname:
-          type: string
-          nullable: true
-          description: Field exists on UserDTO but is not currently populated by login.
-        address:
-          type: string
-          nullable: true
-          example: 123 Example Street
-        phoneNumber:
-          type: string
-          nullable: true
-          example: "6045550100"
-        email:
-          type: string
-          format: email
-          nullable: true
-          example: raynold@example.com
         token:
           type: string
           description: JWT signed with secret.jwt. Subject is the canonical username.
           example: eyJhbGciOiJIUzI1NiJ9.example.signature
-        active:
-          type: integer
-          nullable: true
-          description: Account active flag. Existing code uses 1 for active and 0 for inactive.
-          enum:
-            - 0
-            - 1
-          example: 1
-        groupName:
-          type: string
-          nullable: true
-          description: Field exists on UserDTO but may not be populated by login until controller mapping is updated.
-          example: surrey
     ErrorResponse:
       type: object
       additionalProperties: true

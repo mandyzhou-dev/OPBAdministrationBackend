@@ -6,6 +6,7 @@ import ca.openbox.infrastructure.security.Cryptor;
 import ca.openbox.process.service.EmailService;
 import ca.openbox.user.dataobject.UserDO;
 import ca.openbox.user.dto.LoginDTO;
+import ca.openbox.user.dto.LoginResponseDTO;
 import ca.openbox.user.dto.RegisterDTO;
 import ca.openbox.user.dto.UserDTO;
 import ca.openbox.user.entities.User;
@@ -54,25 +55,25 @@ public class UserController {
 
     @CrossOrigin(origins = "http://localhost:8081", allowCredentials="true", allowedHeaders = {"*"})
     @PostMapping("/login")
-    public Object login(@RequestBody LoginDTO loginDTO, HttpServletRequest request){
+    public LoginResponseDTO login(@RequestBody LoginDTO loginDTO, HttpServletRequest request){
         System.out.println(request.getSession().getId());
         Authentication authenticationRequest = UsernamePasswordAuthenticationToken.unauthenticated(loginDTO.getUsername(),
                 loginDTO.getPassword());
         Authentication authenticationResponse = this.authenticationManager.authenticate(authenticationRequest);
         User user =userService.getUserByUsernameOrEmail(loginDTO.getUsername());
-        UserDTO userDTO = new UserDTO();
-        userDTO.setName(user.getName());
-        userDTO.setUsername(user.getUsername());
-        userDTO.setRoles(user.getRoles());
-        userDTO.setEmail(user.getEmail());
-        userDTO.setPhoneNumber(user.getPhoneNumber());
-        userDTO.setAddress(user.getAddress());
-        userDTO.setBirthdate(user.getBirthdate());
-        userDTO.setJSessionID(request.getSession(true).getId());
-        userDTO.setActive(user.getActive());
-        userDTO.setGroupName(user.getGroupName());
-        userDTO.setToken(jwtUtil.generateToken(user));
-        return userDTO;
+        LoginResponseDTO response = toLoginResponse(user, request.getSession(true).getId());
+        response.setToken(jwtUtil.generateToken(user));
+        return response;
+    }
+
+    LoginResponseDTO toLoginResponse(User user, String sessionId) {
+        LoginResponseDTO response = new LoginResponseDTO();
+        response.setUsername(user.getUsername());
+        response.setName(user.getName());
+        response.setRoles(user.getRoles());
+        response.setGroupName(user.getGroupName());
+        response.setJsessionID(sessionId);
+        return response;
     }
 
 
@@ -103,11 +104,6 @@ public class UserController {
         user.setEmail(registerDTO.getEmail());
         user.setActive(1);
         return userService.register(user);
-    }
-    @CrossOrigin(origins = "http://localhost:8081",methods = {RequestMethod.POST})
-    @PostMapping("{username}/updatesinno")
-    public void updateSIN(@PathVariable String username, @RequestBody String sinno) throws Exception {
-        userService.updateSIN(username,sinno);
     }
     @CrossOrigin(origins = "http://localhost:8081",methods = {RequestMethod.POST})
     @PostMapping("/{username}/password")

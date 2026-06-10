@@ -129,7 +129,7 @@ Responsibilities:
 
 - Register users after email verification.
 - Authenticate username/password through Spring Security.
-- Return login profile data and a JWT.
+- Return minimal login session data and a JWT.
 - Encrypt and decrypt SIN values through `Cryptor`.
 - Reset passwords and modify profile fields.
 - Deactivate users when employment ends.
@@ -143,7 +143,7 @@ Important classes:
 - `UserRepository`
 - `UserPresentationRepository`
 
-Login logic lives in `UserController.login(...)` (`src/main/java/ca/openbox/user/controller/UserController.java`) and is supported by `SecurityConfiguration`, `UserService`, `UserRepository`, `LoginDTO`, `UserDTO`, and `JwtUtil`. The existing `LoginDTO.username` field accepts either a username or an email address. The full login workflow is documented in the repo-local Codex skill [.codex/skills/opb-login-workflow/SKILL.md](.codex/skills/opb-login-workflow/SKILL.md).
+Login logic lives in `UserController.login(...)` (`src/main/java/ca/openbox/user/controller/UserController.java`) and is supported by `SecurityConfiguration`, `UserService`, `UserRepository`, `LoginDTO`, `LoginResponseDTO`, and `JwtUtil`. The existing `LoginDTO.username` field accepts either a username or an email address. The full login workflow is documented in the repo-local Codex skill [.codex/skills/opb-login-workflow/SKILL.md](.codex/skills/opb-login-workflow/SKILL.md).
 
 Email-login support is documented in [docs/login-email-support-plan.md](docs/login-email-support-plan.md). The Swagger/OpenAPI contract for the username-or-email login interface is available at [docs/openapi-login.yaml](docs/openapi-login.yaml).
 
