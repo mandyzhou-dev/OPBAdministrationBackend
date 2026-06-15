@@ -20,6 +20,7 @@ public class LeaveApplicationDO {
     private String currentHandler;
     private String status;
     private String reason;
-    private String rejectReason;
+    @Column(name = "review_comment")
+    private String reviewComment;
     private String note;
 }

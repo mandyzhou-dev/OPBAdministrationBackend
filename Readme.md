@@ -317,6 +317,47 @@ Admin History employee filtering is documented in the repo-local Codex skill [.c
 - Current access is Manager-only through `ApplicationHistoryAccessPolicy`; the policy boundary is reserved for future visibility scopes such as Team Leader team-member access.
 - No database table, field, constraint, or data migration is required for this feature.
 
+Leave application decision comments use the neutral `reviewComment` field. This replaced the old rejection-only `rejectReason` meaning so approved applications can also carry conditional approval notes.
+
+- `reason` is still the employee-submitted application reason.
+- `reviewComment` is the manager decision comment for both approve and reject.
+- `note` is still the editable post-decision History note.
+- `POST /api/process/application/{applicationID}/permit` accepts an optional JSON body: `{ "reviewComment": "Approved, but please complete handoff." }`. The body may be omitted.
+- `POST /api/process/application/{applicationID}/reject` accepts the same JSON shape, but `reviewComment` is required and blank or whitespace-only comments return `400 Bad Request`.
+- Read responses from application list, applicant, handler, and History APIs expose `reviewComment`, not `rejectReason`.
+- Only `reviewComment` may be trimmed, and only for blank validation/storage. Do not trim `applicant`, `currentHandler`, `operatorUsername`, `employeeUsername`, or other identity/query values. Usernames such as `Harsimranjit Kaur ` may intentionally contain a trailing space and must be preserved exactly.
+- Backend and frontend must use the JSON decision-comment contract together; the old plain text reject body is intentionally replaced.
+
+Database migration for this semantic rename is user-executed only. Agents must not run these SQL statements directly. Use a coordinated release window because old code expects `reject_reason` while migrated code expects `review_comment`.
+
+```sql
+-- Pre-check
+SHOW COLUMNS FROM opb_leave_application LIKE 'reject_reason';
+SHOW COLUMNS FROM opb_leave_application LIKE 'review_comment';
+
+-- Migration
+ALTER TABLE opb_leave_application
+  RENAME COLUMN reject_reason TO review_comment;
+
+ALTER TABLE opb_leave_application
+  MODIFY COLUMN review_comment TEXT NULL;
+
+-- Verification
+SHOW COLUMNS FROM opb_leave_application LIKE 'review_comment';
+SELECT id, status, review_comment
+FROM opb_leave_application
+WHERE review_comment IS NOT NULL
+ORDER BY submit_time DESC
+LIMIT 20;
+```
+
+Fallback for older MySQL versions:
+
+```sql
+ALTER TABLE opb_leave_application
+  CHANGE COLUMN reject_reason review_comment TEXT NULL;
+```
+
 Leave DatePicker backend support is documented in [docs/leave-datepicker-backend.md](docs/leave-datepicker-backend.md) and the repo-local Codex skill [.codex/skills/opb-leave-datepicker-backend-workflow/SKILL.md](.codex/skills/opb-leave-datepicker-backend-workflow/SKILL.md). Current contract:
 
 - `GET /api/process/application/leave-date-availability?applicant=<username>&from=<YYYY-MM-DD>&to=<YYYY-MM-DD>` returns per-date shift availability for one applicant.
@@ -347,8 +388,8 @@ Main routes:
 
 - `PUT /api/process/application/leave-application`
 - `GET /api/process/application/leave-date-availability?applicant=...&from=YYYY-MM-DD&to=YYYY-MM-DD`
-- `POST /api/process/application/{applicationID}/permit`
-- `POST /api/process/application/{applicationID}/reject`
+- `POST /api/process/application/{applicationID}/permit` with optional JSON `{ "reviewComment": "..." }`
+- `POST /api/process/application/{applicationID}/reject` with required JSON `{ "reviewComment": "..." }`
 - `DELETE /api/process/application/{applicationID}`
 - `GET /api/process/application`
 - `GET /api/process/application/history?operatorUsername=...&employeeUsername=...&page=0&size=20&sort=submitTime,desc`

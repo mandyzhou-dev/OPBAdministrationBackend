@@ -22,7 +22,7 @@ public class ApplicationHistoryAccessPolicy {
             throw forbidden();
         }
 
-        UserDO operator = userRepository.getUserDOByUsernameAndActiveIsTrue(operatorUsername.trim());
+        UserDO operator = userRepository.getUserDOByUsernameAndActiveIsTrue(operatorUsername);
         if (operator == null) {
             throw forbidden();
         }

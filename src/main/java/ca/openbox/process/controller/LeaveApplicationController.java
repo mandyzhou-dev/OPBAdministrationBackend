@@ -3,6 +3,7 @@ package ca.openbox.process.controller;
 import ca.openbox.process.dto.LeaveDateAvailabilityDTO;
 import ca.openbox.process.dto.PageResponseDTO;
 import ca.openbox.process.dto.PutLeaveApplicationDTO;
+import ca.openbox.process.dto.ReviewDecisionDTO;
 import ca.openbox.process.entities.LeaveApplication;
 import ca.openbox.process.service.LeaveApplicationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,14 +37,15 @@ public class LeaveApplicationController {
 
     @CrossOrigin(origins = "http://localhost:8081",methods = {RequestMethod.POST})
     @PostMapping("/application/{applicationID}/permit")
-    public void permit(@PathVariable Integer applicationID){
-        leaveApplicationService.permitApplication(applicationID);
+    public void permit(@PathVariable Integer applicationID,
+                       @RequestBody(required = false) ReviewDecisionDTO reviewDecisionDTO){
+        leaveApplicationService.permitApplication(applicationID, reviewCommentFrom(reviewDecisionDTO));
     }
 
     @CrossOrigin(origins = "http://localhost:8081",methods = {RequestMethod.POST})
     @PostMapping("/application/{applicationID}/reject")
-    public void reject(@PathVariable Integer applicationID,@RequestBody String rejectReason){
-        leaveApplicationService.rejectApplication(applicationID,rejectReason);
+    public void reject(@PathVariable Integer applicationID,@RequestBody ReviewDecisionDTO reviewDecisionDTO){
+        leaveApplicationService.rejectApplication(applicationID, reviewCommentFrom(reviewDecisionDTO));
     }
     @CrossOrigin(origins = "http://localhost:8081",methods = {RequestMethod.DELETE})
     @DeleteMapping("/application/{applicationID}")
@@ -95,5 +97,9 @@ public class LeaveApplicationController {
                                             @RequestParam("proof") MultipartFile proof,
                                             @RequestParam("applicant") String applicant) {
         return leaveApplicationService.uploadSickProof(applicationID, applicant, proof);
+    }
+
+    private String reviewCommentFrom(ReviewDecisionDTO reviewDecisionDTO) {
+        return reviewDecisionDTO == null ? null : reviewDecisionDTO.getReviewComment();
     }
 }

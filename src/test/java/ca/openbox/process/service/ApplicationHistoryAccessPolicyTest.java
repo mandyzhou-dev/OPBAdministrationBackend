@@ -34,6 +34,14 @@ class ApplicationHistoryAccessPolicyTest {
     }
 
     @Test
+    void operatorUsernameLookupPreservesTrailingSpaces() {
+        when(userRepository.getUserDOByUsernameAndActiveIsTrue("Harsimranjit Kaur ")).thenReturn(user("tester|Manager"));
+
+        assertEquals(HistoryVisibilityScope.ALL_EMPLOYEES,
+                accessPolicy.resolveVisibility("Harsimranjit Kaur ").getScope());
+    }
+
+    @Test
     void managerGroupNameRemainsCompatibleWithExistingPermissionPattern() {
         UserDO operator = user("tester");
         operator.setGroupName("manager");

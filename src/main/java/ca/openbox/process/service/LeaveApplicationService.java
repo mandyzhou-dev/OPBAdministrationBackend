@@ -92,16 +92,17 @@ public class LeaveApplicationService {
         );
     }
 
-    public void permitApplication(Integer applicationID){
-        LeaveApplicationDO leaveApplicationDO = leaveApplicationRepository.getLeaveApplicationDOById(applicationID);
+    public void permitApplication(Integer applicationID, String reviewComment){
+        LeaveApplicationDO leaveApplicationDO = getExistingApplication(applicationID);
         leaveApplicationDO.setStatus("approved");
+        leaveApplicationDO.setReviewComment(optionalReviewComment(reviewComment));
         leaveApplicationDO.setCurrentHandler(leaveApplicationDO.getApplicant());
         leaveApplicationRepository.save(leaveApplicationDO);
     }
-    public void rejectApplication(Integer applicationID, String rejectReason){
-        LeaveApplicationDO leaveApplicationDO = leaveApplicationRepository.getLeaveApplicationDOById(applicationID);
+    public void rejectApplication(Integer applicationID, String reviewComment){
+        LeaveApplicationDO leaveApplicationDO = getExistingApplication(applicationID);
         leaveApplicationDO.setStatus("rejected");
-        leaveApplicationDO.setRejectReason(rejectReason);
+        leaveApplicationDO.setReviewComment(requiredReviewComment(reviewComment));
         leaveApplicationDO.setCurrentHandler(leaveApplicationDO.getApplicant());
         leaveApplicationRepository.save(leaveApplicationDO);
     }
@@ -270,6 +271,30 @@ public class LeaveApplicationService {
         return applicant.trim();
     }
 
+    private LeaveApplicationDO getExistingApplication(Integer applicationID) {
+        LeaveApplicationDO leaveApplicationDO = leaveApplicationRepository.getLeaveApplicationDOById(applicationID);
+        if (leaveApplicationDO == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found");
+        }
+        return leaveApplicationDO;
+    }
+
+    private String optionalReviewComment(String reviewComment) {
+        if (reviewComment == null) {
+            return null;
+        }
+        String normalizedReviewComment = reviewComment.trim();
+        return normalizedReviewComment.isEmpty() ? null : normalizedReviewComment;
+    }
+
+    private String requiredReviewComment(String reviewComment) {
+        String normalizedReviewComment = optionalReviewComment(reviewComment);
+        if (normalizedReviewComment == null) {
+            throw badRequest("Review comment is required");
+        }
+        return normalizedReviewComment;
+    }
+
     private int normalizePage(int page) {
         return Math.max(page, 0);
     }
@@ -285,7 +310,7 @@ public class LeaveApplicationService {
         if (employeeUsername == null || employeeUsername.isBlank()) {
             return null;
         }
-        return employeeUsername.trim();
+        return employeeUsername;
     }
 
     private Sort toSort(String sort) {

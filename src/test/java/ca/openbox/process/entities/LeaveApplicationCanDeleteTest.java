@@ -3,6 +3,7 @@ package ca.openbox.process.entities;
 import ca.openbox.process.dataobject.LeaveApplicationDO;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,6 +23,14 @@ class LeaveApplicationCanDeleteTest {
         assertFalse(LeaveApplication.fromDO(application("unknown")).isCanDelete());
         assertFalse(LeaveApplication.fromDO(application(" ")).isCanDelete());
         assertFalse(LeaveApplication.fromDO(application(null)).isCanDelete());
+    }
+
+    @Test
+    void fromDOMapsReviewComment() {
+        LeaveApplicationDO application = application("approved");
+        application.setReviewComment("Approved with handoff required");
+
+        assertEquals("Approved with handoff required", LeaveApplication.fromDO(application).getReviewComment());
     }
 
     private LeaveApplicationDO application(String status) {

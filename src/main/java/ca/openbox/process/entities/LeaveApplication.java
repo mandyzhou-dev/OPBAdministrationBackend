@@ -16,7 +16,7 @@ public class LeaveApplication {
     private String currentHandler;
     private String status;
     private String reason;
-    private String rejectReason;
+    private String reviewComment;
     private String note;
     private boolean canDelete;
     private boolean sickProofRequired;
@@ -34,7 +34,7 @@ public class LeaveApplication {
         leaveApplication.start = leaveApplicationDO.getStart();
         leaveApplication.end= leaveApplicationDO.getEnd();
         leaveApplication.submitTime = leaveApplicationDO.getSubmitTime();
-        leaveApplication.rejectReason = leaveApplicationDO.getRejectReason();
+        leaveApplication.reviewComment = leaveApplicationDO.getReviewComment();
         leaveApplication.reason=leaveApplicationDO.getReason();
         leaveApplication.note = leaveApplicationDO.getNote();
         leaveApplication.canDelete = LeaveApplicationDeleteRules.canDeleteStatus(leaveApplicationDO.getStatus());
@@ -67,7 +67,7 @@ public class LeaveApplication {
         leaveApplicationDO.setEnd(end);
         leaveApplicationDO.setCurrentHandler(currentHandler);
         leaveApplicationDO.setReason(reason);
-        leaveApplicationDO.setRejectReason(rejectReason);
+        leaveApplicationDO.setReviewComment(reviewComment);
         leaveApplicationDO.setNote(note);
         return leaveApplicationDO;
 

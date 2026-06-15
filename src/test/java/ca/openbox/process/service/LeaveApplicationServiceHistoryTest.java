@@ -63,15 +63,15 @@ class LeaveApplicationServiceHistoryTest {
     }
 
     @Test
-    void historyWithEmployeeReturnsOnlyThatApplicant() {
-        when(leaveApplicationRepository.getLeaveApplicationDOByStatusIsNotContainingAndApplicant(eq("pending"), eq("jane"), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(application(1, "jane", "approved")), PageRequest.of(0, 20), 1));
+    void historyWithEmployeePreservesApplicantQueryValue() {
+        when(leaveApplicationRepository.getLeaveApplicationDOByStatusIsNotContainingAndApplicant(eq("pending"), eq("Harsimranjit Kaur "), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(application(1, "Harsimranjit Kaur ", "approved")), PageRequest.of(0, 20), 1));
 
-        PageResponseDTO<LeaveApplication> response = leaveApplicationService.getHistory(" jane ", 0, 20, "submitTime,desc", "manager");
+        PageResponseDTO<LeaveApplication> response = leaveApplicationService.getHistory("Harsimranjit Kaur ", 0, 20, "submitTime,desc", "manager");
 
         assertEquals(1, response.getContent().size());
-        assertEquals("jane", response.getContent().get(0).getApplicant());
-        verify(leaveApplicationRepository).getLeaveApplicationDOByStatusIsNotContainingAndApplicant(eq("pending"), eq("jane"), any(Pageable.class));
+        assertEquals("Harsimranjit Kaur ", response.getContent().get(0).getApplicant());
+        verify(leaveApplicationRepository).getLeaveApplicationDOByStatusIsNotContainingAndApplicant(eq("pending"), eq("Harsimranjit Kaur "), any(Pageable.class));
     }
 
     @Test
