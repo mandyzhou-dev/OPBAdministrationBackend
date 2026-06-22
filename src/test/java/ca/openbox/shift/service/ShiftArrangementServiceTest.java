@@ -26,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ShiftArrangementServiceTest {
@@ -108,8 +110,27 @@ class ShiftArrangementServiceTest {
 
         assertEquals("paid_sick_leave", updated.getStatus());
         ArgumentCaptor<ShiftArrangementDO> captor = ArgumentCaptor.forClass(ShiftArrangementDO.class);
-        org.mockito.Mockito.verify(shiftArrangementRepository).save(captor.capture());
+        verify(shiftArrangementRepository).save(captor.capture());
         assertEquals("paid_sick_leave", captor.getValue().getStatus());
+    }
+
+    @Test
+    void managerCanMarkPersonalLeaveWithoutPaidSickLeaveQuotaCheck() {
+        ShiftArrangementDO shift = shift(7, "employee", "active", vancouverTime(2026, 5, 13, 9));
+        when(shiftArrangementRepository.findById(7)).thenReturn(Optional.of(shift));
+        when(userRepository.getUserDOByUsernameAndActiveIsTrue("manager")).thenReturn(manager());
+        when(shiftArrangementRepository.save(any(ShiftArrangementDO.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ShiftArrangement updated = shiftArrangementService.updateStatus(7, "personal_leave", "manager");
+
+        assertEquals("personal_leave", updated.getStatus());
+        ArgumentCaptor<ShiftArrangementDO> captor = ArgumentCaptor.forClass(ShiftArrangementDO.class);
+        verify(shiftArrangementRepository).save(captor.capture());
+        assertEquals("personal_leave", captor.getValue().getStatus());
+        verify(userService, never()).isInProbation("employee");
+        verify(shiftArrangementRepository, never()).getShiftArrangementDOByUsernameAndStatusAndStartBetween(
+                eq("employee"), eq("paid_sick_leave"), any(), any()
+        );
     }
 
     @Test

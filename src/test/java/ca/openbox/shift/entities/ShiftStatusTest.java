@@ -8,10 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ShiftStatusTest {
 
     @Test
-    void onlyThreeLeaveStatusesAreManualTargets() {
+    void personalLeaveAndExistingLeaveStatusesAreManualTargets() {
         assertTrue(ShiftStatus.isAllowedManualTarget("no_show"));
         assertTrue(ShiftStatus.isAllowedManualTarget("paid_sick_leave"));
         assertTrue(ShiftStatus.isAllowedManualTarget("unpaid_sick_leave"));
+        assertTrue(ShiftStatus.isAllowedManualTarget("personal_leave"));
 
         assertFalse(ShiftStatus.isAllowedManualTarget("active"));
         assertFalse(ShiftStatus.isAllowedManualTarget("cancelled"));
@@ -23,6 +24,7 @@ class ShiftStatusTest {
         assertTrue(ShiftStatus.isNonWorked("no_show"));
         assertTrue(ShiftStatus.isNonWorked("paid_sick_leave"));
         assertTrue(ShiftStatus.isNonWorked("unpaid_sick_leave"));
+        assertTrue(ShiftStatus.isNonWorked("personal_leave"));
 
         assertFalse(ShiftStatus.isNonWorked("active"));
         assertFalse(ShiftStatus.isNonWorked(null));

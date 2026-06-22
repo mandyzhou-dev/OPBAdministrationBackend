@@ -9,7 +9,8 @@ public enum ShiftStatus {
     CANCELLED("cancelled", false, true),
     NO_SHOW("no_show", true, true),
     PAID_SICK_LEAVE("paid_sick_leave", true, true),
-    UNPAID_SICK_LEAVE("unpaid_sick_leave", true, true);
+    UNPAID_SICK_LEAVE("unpaid_sick_leave", true, true),
+    PERSONAL_LEAVE("personal_leave", true, true);
 
     public static final String PAID_SICK_LEAVE_VALUE = "paid_sick_leave";
 
