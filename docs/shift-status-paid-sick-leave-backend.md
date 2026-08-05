@@ -1,20 +1,23 @@
 # Shift Status and Paid Sick Leave Backend Notes
 
-Status: implemented on 2026-05-13.
+Status: paid sick leave status support implemented on 2026-05-13; `personal_leave` manual status added on 2026-06-18.
 
-This document records the backend contract and maintenance notes for manual shift status changes, paid sick leave quota, non-worked status filtering, and CORS/Spring Security requirements for browser PATCH endpoints.
+This document records the backend contract and maintenance notes for manual shift status changes, paid sick leave quota, non-worked status filtering, Schedule presentation visibility, and CORS/Spring Security requirements for browser PATCH endpoints.
 
 ## Product Rules
 
-Managers can manually mark a shift as one of three non-worked states:
+Managers can manually mark a shift as one of these non-worked states:
 
 - `no_show`
 - `paid_sick_leave`
 - `unpaid_sick_leave`
+- `personal_leave`
 
 There is intentionally no reset or `active` write endpoint in this feature. The manual status API must reject `active`, `cancelled`, and arbitrary strings.
 
 `cancelled` is an existing state and remains readable, but it is also treated as non-worked for statistics and KPI.
+
+`personal_leave` is a shift status value, not a leave-application type. Keep the underscore naming because shift statuses use snake_case values such as `paid_sick_leave` and `unpaid_sick_leave`.
 
 ## Status Semantics
 
@@ -25,8 +28,17 @@ There is intentionally no reset or `active` write endpoint in this feature. The 
 | `no_show` | Employee did not attend | Yes | Excluded | Excluded | Not counted |
 | `paid_sick_leave` | Paid sick leave | Yes | Excluded | Excluded | Counted by Vancouver calendar day |
 | `unpaid_sick_leave` | Unpaid sick leave | Yes | Excluded | Excluded | Not counted |
+| `personal_leave` | Personal leave marked on schedule | Yes | Excluded | Excluded | Not counted |
 
 Shared semantics live in `ca.openbox.shift.entities.ShiftStatus`. Keep new status logic centralized there rather than duplicating string sets across services.
+
+For `personal_leave`, the enum entry is:
+
+```java
+PERSONAL_LEAVE("personal_leave", true, true)
+```
+
+That means it is both a manual API target and a non-worked status.
 
 ## Backend API Contract
 
@@ -42,7 +54,7 @@ Request body:
 
 ```json
 {
-  "status": "no_show",
+  "status": "personal_leave",
   "operatorUsername": "manager_username"
 }
 ```
@@ -52,6 +64,7 @@ Allowed `status` values:
 - `no_show`
 - `paid_sick_leave`
 - `unpaid_sick_leave`
+- `personal_leave`
 
 Response body is the updated `ShiftArrangement` with the current `status`.
 
@@ -59,8 +72,10 @@ The service checks:
 
 - The shift exists.
 - `operatorUsername` belongs to an active Manager user. Current architecture checks `roles` and `groupName`; it is not full JWT authorization.
-- The requested status is one of the three manual targets.
+- The requested status is one of the manual targets defined in `ShiftStatus`.
 - `paid_sick_leave` additionally requires the employee to be eligible and have remaining quota, unless the target Vancouver calendar day is already counted.
+
+Do not apply paid sick leave quota or probation validation to `personal_leave`, `no_show`, or `unpaid_sick_leave`. In `ShiftArrangementService.updateStatus(...)`, quota validation must remain scoped to `ShiftStatus.PAID_SICK_LEAVE_VALUE`.
 
 ### Paid Sick Leave Quota
 
@@ -110,6 +125,7 @@ Worked hours and KPI work-hour inputs must exclude:
 - `no_show`
 - `paid_sick_leave`
 - `unpaid_sick_leave`
+- `personal_leave`
 
 Current locations:
 
@@ -127,9 +143,11 @@ Current requirements:
 
 - `ShiftPresentation` includes `status`.
 - Native schedule queries select `opb_shift_arrangement.status`.
-- Visible shift queries include `active`, `cancelled`, `no_show`, `paid_sick_leave`, and `unpaid_sick_leave`.
+- Visible shift queries include `active`, `cancelled`, `no_show`, `paid_sick_leave`, `unpaid_sick_leave`, and `personal_leave`.
 
 Do not filter manual non-worked statuses out of schedule projections; only filter them out of worked-hour and KPI calculations.
+
+The key maintenance risk is `ShiftPresentationRepository`: it has native SQL allow-lists for visible shift statuses. Whenever a new shift status must remain visible on Schedule after it is saved, every presentation query allow-list must be updated in the same change. If the enum accepts a new manual status but the presentation allow-list omits it, the PATCH can succeed and then the shift can disappear from Schedule reads.
 
 ## CORS and Spring Security for PATCH Endpoints
 
@@ -163,6 +181,16 @@ mvn test -Dtest=ShiftStatusTest,ShiftArrangementServiceTest,WorkLoadCalculatorTe
 mvn test -Dtest=SecurityConfigurationTest,ShiftArrangementControllerCorsTest
 ```
 
+The `personal_leave` implementation was verified with:
+
+```bash
+mvn -Dtest=ShiftStatusTest,ShiftArrangementServiceTest test
+mvn test
+mvn -DskipTests package
+```
+
+Result on 2026-06-18: `mvn test` passed with 92 tests, 0 failures, 0 errors; package build succeeded and generated the Spring Boot jar.
+
 Run the full backend build:
 
 ```bash
@@ -187,5 +215,6 @@ Reason:
 - Production has no enum/check constraint on `status`.
 - New status strings fit inside 32 characters.
 - Quota is derived from existing shift rows and Java-side Vancouver local date grouping.
+- `personal_leave` is 14 characters and fits the existing column.
 
 If a future environment adds enum/check constraints, stop implementation and provide the full SQL in the issue for the user/DBA to run. Do not modify the database directly.

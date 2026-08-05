@@ -196,11 +196,16 @@ Important classes:
 
 Manual shift status changes and paid sick leave quota are documented in [docs/shift-status-paid-sick-leave-backend.md](docs/shift-status-paid-sick-leave-backend.md). Key rules:
 
-- Managers may write only `no_show`, `paid_sick_leave`, or `unpaid_sick_leave` through the manual status API; there is no reset/active write endpoint for this feature.
+- Managers may write only `no_show`, `paid_sick_leave`, `unpaid_sick_leave`, or `personal_leave` through the manual status API; there is no reset/active write endpoint for this feature.
+- `personal_leave` is a shift status value in `ShiftStatus` with `manualTarget = true` and `nonWorked = true`; keep the snake_case value distinct from any frontend leave-application type naming.
+- Manual status updates reuse `PATCH /api/shift/shiftarrangement/{id}/status` with request body `{ "status": "<target_status>", "operatorUsername": "<manager username>" }`.
 - `paid_sick_leave` quota is calculated by distinct `America/Vancouver` calendar days and calendar years. Multiple paid sick leave shifts for the same employee on the same Vancouver local date count as 1 used day.
+- Paid sick leave quota and probation validation apply only when the target status is `paid_sick_leave`; do not apply that quota path to `personal_leave`.
 - `bigDay == null` is treated as probation / not eligible for paid sick leave.
-- `cancelled`, `no_show`, `paid_sick_leave`, and `unpaid_sick_leave` are non-worked statuses for worked hours and KPI input.
-- Schedule projections must still return non-worked statuses so the frontend can show status colors to employees.
+- `cancelled`, `no_show`, `paid_sick_leave`, `unpaid_sick_leave`, and `personal_leave` are non-worked statuses for worked hours and KPI input.
+- Schedule projections must still return non-worked statuses so the frontend can show status colors to employees. When adding a visible shift status, update every `ShiftPresentationRepository` native query status allow-list in the same change; otherwise a successful status PATCH can make the shift disappear from Schedule reads.
+- No database table, field, constraint, or required migration was needed for `personal_leave`; `opb_shift_arrangement.status` is a `varchar(32)` and the new value fits.
+- The `personal_leave` backend change was verified with `mvn -Dtest=ShiftStatusTest,ShiftArrangementServiceTest test`, `mvn test` (92 tests, 0 failures / 0 errors), and `mvn -DskipTests package`.
 - Browser-facing `PATCH` endpoints must update Spring Security CORS allowed methods, the security method allowlist, MVC CORS methods, and preflight tests.
 
 Select shift form candidate state is documented in [docs/shift-candidates-endpoint-backend.md](docs/shift-candidates-endpoint-backend.md). Key rules:
@@ -249,6 +254,8 @@ Main routes:
 Reusable Fullstack Architect notes for Application History planning, UI scope control, API boundaries, database-change handling, and verification are captured in [plans/fullstack-architect-reusable-notes-2026-05-20.md](plans/fullstack-architect-reusable-notes-2026-05-20.md).
 
 The same notes now include the Select Shift Form candidate availability workflow: confirm UI intent first, produce the plan before implementation, define the front/back DTO contract first, and never apply DB schema/data changes directly. If a schema change is needed, agents must give the user complete SQL to execute.
+
+The same notes now include MAN-36 Schedule `personal_leave` lessons: keep the status naming contract explicit, update presentation query allow-lists for every visible status, scope paid sick leave quota only to `paid_sick_leave`, state the no-DB-change conclusion, and record final frontend color decisions after product review. The backend-specific plan is [plans/mark-as-personal-leave-backend-plan-2026-06-18.md](plans/mark-as-personal-leave-backend-plan-2026-06-18.md).
 
 ### KPI
 

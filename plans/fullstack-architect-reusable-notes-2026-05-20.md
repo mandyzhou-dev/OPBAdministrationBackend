@@ -35,6 +35,14 @@ These notes capture reusable cross-stack lessons from the Application History em
 - If no database change is needed, say that explicitly in the plan so Backend_Dev and Project_Manager can verify the boundary.
 - This rule applies before implementation, during implementation, and during verification. If a later discovery shows the schema cannot support the approved contract, stop and post the SQL for user execution instead of changing the database directly.
 
+## Schedule Status Cross-Stack Lessons
+
+- Treat Schedule manual status values as a shared API contract. For MAN-36, the approved shift status is `personal_leave`, while the existing employee leave application type remains `personalleave`; do not normalize one into the other without explicit product approval.
+- When a new shift status should remain visible on Schedule, backend write validation is not enough. Every `ShiftPresentationRepository` native query status allow-list must include the new value, otherwise the PATCH can succeed while the shift disappears from manager and employee Schedule reads.
+- Keep paid sick leave quota and probation logic scoped to `paid_sick_leave`. Other non-worked statuses such as `no_show`, `unpaid_sick_leave`, and `personal_leave` should not inherit quota hardlocks by sharing UI or service branches too broadly.
+- Record final UI decisions after user review. MAN-36 initially proposed a distinct blue for `personal_leave`, then product chose the same grey as `no_show`: background `#9CA3AF`, text `#111827`.
+- Plain `varchar(32)` shift status storage means `personal_leave` needs no table, field, constraint, or required migration. Still document the DB conclusion explicitly and include only optional comment/data SQL when the user asks for it.
+
 ## Verification Notes
 
 - Frontend changes should include focused Jest coverage when behavior changes, plus `git diff --check`.
