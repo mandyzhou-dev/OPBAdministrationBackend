@@ -15,7 +15,7 @@ public interface ShiftPresentationRepository extends JpaRepository<ShiftPresenta
             "opb_shift_arrangement.group_name, start, end, opb_shift_arrangement.status from opb_shift_arrangement\n"+
             "left join opb_user on opb_shift_arrangement.username = opb_user.username\n" +
             "where (start>=:start and start <=:end) \n" +
-            "and opb_shift_arrangement.status in (\"active\",\"cancelled\",\"no_show\",\"paid_sick_leave\",\"unpaid_sick_leave\",\"personal_leave\") \n"+
+            "and opb_shift_arrangement.status in (\"active\",\"cancelled\",\"no_show\",\"paid_sick_leave\",\"unpaid_sick_leave\",\"personal_leave\",\"annual_leave\") \n"+
             "and opb_shift_arrangement.username =:username",
             nativeQuery = true)
     public Collection<ShiftPresentation> getSchedulePresentationByUsernameAndStartdate(String username,ZonedDateTime start, ZonedDateTime end);
@@ -24,7 +24,7 @@ public interface ShiftPresentationRepository extends JpaRepository<ShiftPresenta
             "opb_shift_arrangement.group_name, start, end, opb_shift_arrangement.status from opb_shift_arrangement\n"+
             "left join opb_user on opb_shift_arrangement.username = opb_user.username\n" +
             "where (start>=:start and start <=:end) \n" +
-            "and opb_shift_arrangement.status in (\"active\",\"cancelled\",\"no_show\",\"paid_sick_leave\",\"unpaid_sick_leave\",\"personal_leave\")",
+            "and opb_shift_arrangement.status in (\"active\",\"cancelled\",\"no_show\",\"paid_sick_leave\",\"unpaid_sick_leave\",\"personal_leave\",\"annual_leave\")",
             nativeQuery = true)
     public List<ShiftPresentation> getByTimeScope(ZonedDateTime start, ZonedDateTime end);
 
@@ -32,7 +32,7 @@ public interface ShiftPresentationRepository extends JpaRepository<ShiftPresenta
             "opb_shift_arrangement.group_name, start, end, opb_shift_arrangement.status from opb_shift_arrangement\n"+
             "left join opb_user on opb_shift_arrangement.username = opb_user.username\n" +
             "where (start>=:start and start <=:end) \n" +
-            "and opb_shift_arrangement.status in (\"active\",\"cancelled\",\"no_show\",\"paid_sick_leave\",\"unpaid_sick_leave\",\"personal_leave\") "+
+            "and opb_shift_arrangement.status in (\"active\",\"cancelled\",\"no_show\",\"paid_sick_leave\",\"unpaid_sick_leave\",\"personal_leave\",\"annual_leave\") "+
             "and opb_shift_arrangement.group_name=:groupName",
             nativeQuery = true)
     public Collection<ShiftPresentation> getByGroupAndTimeScope(String groupName, ZonedDateTime start, ZonedDateTime end);
@@ -42,7 +42,7 @@ public interface ShiftPresentationRepository extends JpaRepository<ShiftPresenta
             "from opb_shift_arrangement\n" +
             "left join opb_user on opb_shift_arrangement.username = opb_user.username\n" +
             "where (start >= :start and start <= :end) \n" +
-            "and opb_shift_arrangement.status in ('active', 'cancelled', 'no_show', 'paid_sick_leave', 'unpaid_sick_leave', 'personal_leave') \n" +
+            "and opb_shift_arrangement.status in ('active', 'cancelled', 'no_show', 'paid_sick_leave', 'unpaid_sick_leave', 'personal_leave','annual_leave') \n" +
             "and (opb_shift_arrangement.group_name = :groupName OR opb_shift_arrangement.username = :username)",
             nativeQuery = true)
     public List<ShiftPresentation> getByGroupOrUsernameBetween(String groupName, String username,
