@@ -21,5 +21,6 @@ public class UserPresentation {
     private String name;
     private String roles;
     private String groupName;
+    private String phoneNumber;
 
 }
